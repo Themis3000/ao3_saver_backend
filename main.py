@@ -31,7 +31,9 @@ class WorkReport(BaseModel):
 async def report_work(work: WorkReport):
     if work.updated_time > db.get_updated_time(work.work_id):
         ao3.dl_work(work.work_id, work.updated_time)
-    return {"status": "success"}
+    if db.get_updated_time(work.work_id) == -1:
+        raise HTTPException(status_code=500, detail="could not archive for an unknown reason.")
+    return {"status": "success", "updated": db.get_updated_time(work.work_id)}
 
 
 @app.get("/works/{work_id}")
