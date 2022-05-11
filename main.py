@@ -29,6 +29,7 @@ class WorkReport(BaseModel):
 
 @app.post("/report_work")
 async def report_work(work: WorkReport):
+    print(f"work {work.work_id} updated at {work.updated_time} reported")
     if work.updated_time > db.get_updated_time(work.work_id):
         fetched_work = ao3.dl_work(work.work_id, work.updated_time)
         if not fetched_work:
