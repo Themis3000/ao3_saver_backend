@@ -30,7 +30,9 @@ class WorkReport(BaseModel):
 @app.post("/report_work")
 async def report_work(work: WorkReport):
     if work.updated_time > db.get_updated_time(work.work_id):
-        ao3.dl_work(work.work_id, work.updated_time)
+        work = ao3.dl_work(work.work_id, work.updated_time)
+        if not work:
+            raise HTTPException(status_code=400, detail="work could not be fetched.")
     if db.get_updated_time(work.work_id) == -1:
         raise HTTPException(status_code=500, detail="could not archive for an unknown reason.")
     return {"status": "success", "updated": db.get_updated_time(work.work_id)}
