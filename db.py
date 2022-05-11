@@ -10,11 +10,11 @@ def save_work(work_id, updated_time, data):
 
 
 def get_updated_time(work_id):
-    return db.get(work_id, 0)
+    return db.get(work_id, -1)
 
 
 def get_work(work_id):
     updated_time = get_updated_time(work_id)
-    if updated_time == 0:
+    if updated_time == -1:
         return False
     return open(f"data/{work_id}.pdf", "rb")
