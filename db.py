@@ -1,4 +1,5 @@
 from sqlitedict import SqliteDict
+import os.path
 
 db = SqliteDict("data/data.sqlite", autocommit=True)
 
@@ -10,6 +11,8 @@ def save_work(work_id, updated_time, data):
 
 
 def get_updated_time(work_id):
+    if not os.path.isfile(f"data/{work_id}.pdf"):
+        return -1
     return db.get(work_id, -1)
 
 
