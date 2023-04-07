@@ -1,7 +1,7 @@
 import db
 import ao3
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -29,13 +29,14 @@ class WorkReport(BaseModel):
 @app.post("/report_work")
 async def report_work(work: WorkReport):
     print(f"work {work.work_id} updated at {work.updated_time} reported")
-    if work.updated_time > db.get_updated_time(work.work_id):
+    stored_updated_time = db.get_updated_time(work.work_id)
+    if work.updated_time > stored_updated_time:
         fetched_work = ao3.dl_work(work.work_id, work.updated_time)
         if not fetched_work:
             raise HTTPException(status_code=400, detail="work could not be fetched.")
-    if db.get_updated_time(work.work_id) == -1:
+    if stored_updated_time == -1:
         raise HTTPException(status_code=500, detail="could not archive for an unknown reason.")
-    return {"status": "success", "updated": db.get_updated_time(work.work_id)}
+    return {"status": "success", "updated": stored_updated_time}
 
 
 @app.get("/works/{work_id}")
@@ -43,4 +44,4 @@ async def get_work(work_id: int):
     work = db.get_work(work_id)
     if work is False:
         raise HTTPException(status_code=404, detail="work not found")
-    return StreamingResponse(work, media_type="application/pdf")
+    return Response(content=work, media_type="application/pdf")
