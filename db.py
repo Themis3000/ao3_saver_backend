@@ -20,6 +20,13 @@ client = session.client('s3',
 
 
 def save_work(work_id, updated_time, data):
+    prev_updated_time = get_updated_time(work_id)
+    if prev_updated_time != -1:  # Checks if there's an existing copy
+        # Makes copy of old version & removes it
+        client.copy_object(Bucket=bucket,
+                           CopySource={"Bucket": bucket, "Key": f"{work_id}.pdf"},
+                           Key=f"Old/{work_id}/{work_id}_{prev_updated_time}.pdf")
+        client.delete_object(Bucket=bucket, key=f"{work_id}.pdf")
     client.put_object(Bucket=bucket,
                       Key=f"{work_id}.pdf",
                       Body=data,
