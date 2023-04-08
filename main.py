@@ -34,9 +34,10 @@ async def report_work(work: WorkReport):
         fetched_work = ao3.dl_work(work.work_id, work.updated_time)
         if not fetched_work:
             raise HTTPException(status_code=400, detail="work could not be fetched.")
-    if stored_updated_time == -1:
+    new_updated_time = db.get_updated_time(work.work_id)
+    if new_updated_time == -1:
         raise HTTPException(status_code=500, detail="could not archive for an unknown reason.")
-    return {"status": "success", "updated": stored_updated_time}
+    return {"status": "success", "updated": new_updated_time}
 
 
 @app.get("/works/{work_id}")
