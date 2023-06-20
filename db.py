@@ -63,7 +63,3 @@ def get_work(work_id):
         return bytes_buffer.getvalue()
     except botocore.exceptions.ClientError:
         return False
-
-
-if __name__ == "__main__":
-    print(get_updated_time(46307245))
