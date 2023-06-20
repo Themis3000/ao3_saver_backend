@@ -78,3 +78,37 @@ def get_work_versions(work_id, limit=100):
         versions.append(timestamp)
     versions.sort(reverse=True)
     return versions
+
+
+def get_archived_work(work_id, timestamp):
+    # a list of patch files to apply to the original in order to recover the archived work
+    patches = []
+    # original work data
+    metadataRes = client.head_object(Bucket=bucket, Key=f"{work_id}.pdf")
+    prev_version = int(metadataRes["Metadata"]["prev-version"])
+    patches.append(prev_version)
+
+    # iterate through each previous patch file till the desired one is reached
+    while True:
+        if prev_version == timestamp:
+            break
+        # fail out if the desired timestamp is skipped over
+        if prev_version < timestamp:
+            return False
+
+        metadataRes = client.head_object(Bucket=bucket, Key=f"diff_archive/{work_id}/{prev_version}.diff")
+        prev_version = int(metadataRes["Metadata"]["prev-version"])
+        patches.append(prev_version)
+
+    # get the current file, this will be mutated through patches
+    bytes_buffer = io.BytesIO()
+    client.download_fileobj(Bucket=bucket, Key=f"{work_id}.pdf", Fileobj=bytes_buffer)
+    master_file = bytes_buffer.getvalue()
+
+    for version in patches:
+        bytes_buffer = io.BytesIO()
+        client.download_fileobj(Bucket=bucket, Key=f"diff_archive/{work_id}/{version}.diff", Fileobj=bytes_buffer)
+        diff_bytes = bytes_buffer.getvalue()
+        master_file = bsdiff4.patch(master_file, diff_bytes)
+
+    return master_file
