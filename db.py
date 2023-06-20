@@ -3,6 +3,7 @@ import time
 import boto3
 import botocore
 import os.path
+import bsdiff4
 
 public_key = os.environ["S3_PUBLIC_KEY"]
 private_key = os.environ["S3_PRIVATE_KEY"]
@@ -19,18 +20,29 @@ client = session.client('s3',
                         aws_secret_access_key=private_key)
 
 
-def save_work(work_id, updated_time, data):
+def save_work(work_id, updated_time, work_data):
     prev_updated_time = get_updated_time(work_id)
     if prev_updated_time != -1:  # Checks if there's an existing copy
-        # Makes copy of old version & removes it
-        client.copy_object(Bucket=bucket,
-                           CopySource={"Bucket": bucket, "Key": f"{work_id}.pdf"},
-                           Key=f"Old/{work_id}/{work_id}_{prev_updated_time}.pdf")
+        # Gets the old version
+        bytes_buffer = io.BytesIO()
+        client.download_fileobj(Bucket=bucket, Key=f"{work_id}.pdf", Fileobj=bytes_buffer)
+        old_version = bytes_buffer.getvalue()
+        old_metadata_res = client.head_object(Bucket=bucket, Key=f"{work_id}.pdf")
+        old_metadata = old_metadata_res["Metadata"]
+        # Saves a diff file so that the old version can be patched & recovered in the future
+        diff = bsdiff4.diff(work_data, old_version)
+        client.put_object(Bucket=bucket,
+                          Key=f"diff_archive/{work_id}/{prev_updated_time}.diff",
+                          Body=diff,
+                          Metadata=old_metadata)
+        # Cleans up old version to make way for new version
         client.delete_object(Bucket=bucket, Key=f"{work_id}.pdf")
     client.put_object(Bucket=bucket,
                       Key=f"{work_id}.pdf",
-                      Body=data,
-                      Metadata={"workupdatedtime": str(updated_time), "uploadedtime": str(int(time.time()))})
+                      Body=work_data,
+                      Metadata={"workupdatedtime": str(updated_time),
+                                "uploadedtime": str(int(time.time())),
+                                "prev_version": str(prev_updated_time)})
 
 
 def get_updated_time(work_id):
