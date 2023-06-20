@@ -94,7 +94,7 @@ def get_archived_work(work_id, timestamp):
             break
         # fail out if the desired timestamp is skipped over
         if prev_version < timestamp:
-            return False
+            raise Exception("Desired timestamp not found")
 
         metadataRes = client.head_object(Bucket=bucket, Key=f"diff_archive/{work_id}/{prev_version}.diff")
         prev_version = int(metadataRes["Metadata"]["prev-version"])
