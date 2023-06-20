@@ -76,4 +76,5 @@ def get_work_versions(work_id, limit=100):
         ending = key.rsplit("/", 1)[1]
         timestamp = int(ending[:-5])
         versions.append(timestamp)
+    versions.sort(reverse=True)
     return versions
