@@ -104,7 +104,7 @@ def get_archived_work(work_id, timestamp):
     bytes_buffer = io.BytesIO()
     client.download_fileobj(Bucket=bucket, Key=f"{work_id}.pdf", Fileobj=bytes_buffer)
     master_file = bytes_buffer.getvalue()
-
+    # Iteratively get and apply patches
     for version in patches:
         bytes_buffer = io.BytesIO()
         client.download_fileobj(Bucket=bucket, Key=f"diff_archive/{work_id}/{version}.diff", Fileobj=bytes_buffer)
