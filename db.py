@@ -5,6 +5,8 @@ import botocore
 import os.path
 import bsdiff4
 
+import ao3
+
 public_key = os.environ["S3_PUBLIC_KEY"]
 private_key = os.environ["S3_PRIVATE_KEY"]
 region = os.environ["S3_REGION_NAME"]
@@ -63,3 +65,15 @@ def get_work(work_id):
         return bytes_buffer.getvalue()
     except botocore.exceptions.ClientError:
         return False
+
+
+def get_work_versions(work_id, limit=100):
+    response = client.list_objects_v2(Bucket=bucket, Prefix=f"diff_archive/{work_id}/", MaxKeys=limit)
+    # Get timestamp from file names & return them
+    versions = []
+    for version in response["Contents"]:
+        key: str = version["Key"]
+        ending = key.rsplit("/", 1)[1]
+        timestamp = int(ending[:-5])
+        versions.append(timestamp)
+    return versions
