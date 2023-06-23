@@ -3,3 +3,4 @@ uvicorn[standard]
 requests
 boto3
 bsdiff4
+jinja2

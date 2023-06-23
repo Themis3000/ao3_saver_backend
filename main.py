@@ -1,11 +1,14 @@
+import datetime
 import db
 import ao3
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates/")
 
 origins = [
     "http://127.0.0.1:8000",
@@ -41,8 +44,35 @@ async def report_work(work: WorkReport):
 
 
 @app.get("/works/{work_id}")
-async def get_work(work_id: int):
+async def get_work(work_id: int, request: Request):
+    work_history = db.get_work_versions(work_id)
+    most_recent_url = f"/works/dl/{work_id}"
+    if len(work_history) == 0:
+        return RedirectResponse(url=most_recent_url)
+
+    archives = []
+    for work_timestamp in work_history:
+        url = f"/works/dl_historical/{work_id}/{work_timestamp}"
+        date = datetime.datetime.fromtimestamp(work_timestamp).strftime('%c')
+        archives.append({"url": url, "date": date})
+
+    return templates.TemplateResponse(
+        "work_dl.html",
+        context={"most_recent_url": most_recent_url, "archives": archives, "request": request},
+    )
+
+
+@app.get("/works/dl/{work_id}")
+async def dl_work(work_id: int):
     work = db.get_work(work_id)
+    if work is False:
+        raise HTTPException(status_code=404, detail="work not found")
+    return Response(content=work, media_type="application/pdf")
+
+
+@app.get("/works/dl_historical/{work_id}/{timestamp}")
+async def dl_historical_work(work_id: int, timestamp: int):
+    work = db.get_archived_work(work_id, timestamp)
     if work is False:
         raise HTTPException(status_code=404, detail="work not found")
     return Response(content=work, media_type="application/pdf")

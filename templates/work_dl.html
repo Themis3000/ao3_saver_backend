@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Download work</title>
+</head>
+<body>
+<h2>Archived copies</h2>
+<a href="{{ most_recent_url }}">Most recent archive</a>
+<br><br>
+<i>Older archived works may take a while to download as the archives are architected to prioritize space savings over access speed. Please be patient</i>
+<br>
+<br>
+{% for work in archives %}
+    <a href="{{ work['url'] }}">{{ work['date'] }}</a>
+    <br>
+{% endfor %}
+<br>
+<i>Historical archives are still experimental, please report any issues you encounter to mail@themismegas.com</i>
+
+</body>
+</html>

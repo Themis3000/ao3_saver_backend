@@ -71,7 +71,7 @@ def get_work_versions(work_id, limit=100):
     response = client.list_objects_v2(Bucket=bucket, Prefix=f"diff_archive/{work_id}/", MaxKeys=limit)
     # Get timestamp from file names & return them
     versions = []
-    for version in response["Contents"]:
+    for version in response.get("Contents", []):
         key: str = version["Key"]
         ending = key.rsplit("/", 1)[1]
         timestamp = int(ending[:-5])
