@@ -3,7 +3,8 @@ import io
 import re
 import time
 from stat import S_IFREG
-from typing import TypedDict, List
+from typing import List
+from typing_extensions import TypedDict
 from stream_zip import stream_zip, ZIP_64
 import boto3
 import botocore
