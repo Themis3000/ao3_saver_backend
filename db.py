@@ -1,11 +1,12 @@
+import datetime
 import io
 import time
+from stat import S_IFREG
+from stream_zip import stream_zip, ZIP_64
 import boto3
 import botocore
 import os.path
 import bsdiff4
-
-import ao3
 
 public_key = os.environ["S3_PUBLIC_KEY"]
 private_key = os.environ["S3_PRIVATE_KEY"]
@@ -112,3 +113,21 @@ def get_archived_work(work_id, timestamp):
         master_file = bsdiff4.patch(master_file, diff_bytes)
 
     return master_file
+
+
+def get_bulk_works(work_ids):
+    failed_works = []
+
+    def work_files():
+        for work_id in work_ids:
+            work = get_work(work_id)
+            if work is False:
+                failed_works.append(work_id)
+                continue
+
+            def work_bytes_gen():
+                yield work
+
+            yield f"{work_id}.pdf", datetime.datetime.now(), S_IFREG | 0o600, ZIP_64, work_bytes_gen()
+
+    return stream_zip(work_files())

@@ -1,13 +1,18 @@
 import datetime
+import uuid
+
 import db
 import ao3
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import Response, RedirectResponse
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.responses import Response, RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from typing import List
+from cacheout import Cache
 
 app = FastAPI()
+bulk_dl_tasks_cache = Cache(maxsize=5000)
 templates = Jinja2Templates(directory="templates/")
 
 origins = [
@@ -76,3 +81,25 @@ async def dl_historical_work(work_id: int, timestamp: int):
     if work is False:
         raise HTTPException(status_code=404, detail="work not found")
     return Response(content=work, media_type="application/pdf")
+
+
+class BulkRequest(BaseModel):
+    work_ids: List[int]
+
+
+@app.post("/works/dl/bulk_prepare")
+async def bulk_download_prep(work_requests: BulkRequest):
+    dl_key = uuid.uuid4().hex
+    bulk_dl_tasks_cache.set(dl_key, work_requests.work_ids)
+    return {"dl_id": dl_key}
+
+
+@app.get("/works/dl/bulk_dl/{dl_id}")
+async def bulk_download(dl_id: str):
+    work_ids = bulk_dl_tasks_cache.get(dl_id)
+    if not work_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Download not valid, please initiate a new download or check that you have the right url.")
+    zip_res = db.get_bulk_works(work_ids)
+    return StreamingResponse(content=zip_res, media_type="application/zip")
