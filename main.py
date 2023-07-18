@@ -1,6 +1,5 @@
 import datetime
 import uuid
-
 import db
 import ao3
 from fastapi import FastAPI, HTTPException, Request, status
@@ -84,22 +83,22 @@ async def dl_historical_work(work_id: int, timestamp: int):
 
 
 class BulkRequest(BaseModel):
-    work_ids: List[int]
+    works: List[db.WorkBulkEntry]
 
 
 @app.post("/works/dl/bulk_prepare")
 async def bulk_download_prep(work_requests: BulkRequest):
     dl_key = uuid.uuid4().hex
-    bulk_dl_tasks_cache.set(dl_key, work_requests.work_ids)
+    bulk_dl_tasks_cache.set(dl_key, work_requests.works)
     return {"dl_id": dl_key}
 
 
 @app.get("/works/dl/bulk_dl/{dl_id}")
 async def bulk_download(dl_id: str):
-    work_ids = bulk_dl_tasks_cache.get(dl_id)
-    if not work_ids:
+    works = bulk_dl_tasks_cache.get(dl_id)
+    if not works:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Download not valid, please initiate a new download or check that you have the right url.")
-    zip_res = db.get_bulk_works(work_ids)
+    zip_res = db.get_bulk_works(works)
     return StreamingResponse(content=zip_res, media_type="application/zip")

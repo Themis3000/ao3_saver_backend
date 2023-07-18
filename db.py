@@ -1,7 +1,9 @@
 import datetime
 import io
+import re
 import time
 from stat import S_IFREG
+from typing import TypedDict, List
 from stream_zip import stream_zip, ZIP_64
 import boto3
 import botocore
@@ -115,19 +117,28 @@ def get_archived_work(work_id, timestamp):
     return master_file
 
 
-def get_bulk_works(work_ids):
+class WorkBulkEntry(TypedDict):
+    work_id: int
+    title: str
+
+
+re_clean_filename = re.compile(r"[/\\?%*:|\"<>\x7F\x00-\x1F]")
+
+
+def get_bulk_works(works: List[WorkBulkEntry]):
     failed_works = []
 
     def work_files():
-        for work_id in work_ids:
-            work = get_work(work_id)
-            if work is False:
-                failed_works.append(work_id)
+        for work in works:
+            work_contents = get_work(work["work_id"])
+            if work_contents is False:
+                failed_works.append(work)
                 continue
 
             def work_bytes_gen():
-                yield work
+                yield work_contents
 
-            yield f"{work_id}.pdf", datetime.datetime.now(), S_IFREG | 0o600, ZIP_64, work_bytes_gen()
+            file_name = re_clean_filename.sub('-', f"{work['title']} ({work['work_id']}).pdf")
+            yield file_name, datetime.datetime.now(), S_IFREG | 0o600, ZIP_64, work_bytes_gen()
 
     return stream_zip(work_files())
