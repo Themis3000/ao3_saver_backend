@@ -12,7 +12,8 @@ from typing import List
 from cacheout import Cache
 
 app = FastAPI()
-Instrumentator().instrument(app).expose(app)
+instrumentator = Instrumentator(should_group_status_codes=False, excluded_handlers=["/metrics"])
+instrumentator.instrument(app).expose(app)
 bulk_dl_tasks_cache = Cache(maxsize=5000)
 templates = Jinja2Templates(directory="templates/")
 
