@@ -36,13 +36,15 @@ class WorkReport(BaseModel):
 
 
 @app.post("/report_work")
-async def report_work(work: WorkReport):
+async def report_work(work: WorkReport, response: Response):
     print(f"work {work.work_id} updated at {work.updated_time} reported")
     stored_updated_time = db.get_updated_time(work.work_id)
     if work.updated_time > stored_updated_time:
         fetched_work = ao3.dl_work(work.work_id, work.updated_time)
         if not fetched_work:
             raise HTTPException(status_code=400, detail="work could not be fetched.")
+        response.status_code = 201
+    # TODO:Themis revisit why the updated time is fetched twice. Should this be indented in the if block?
     new_updated_time = db.get_updated_time(work.work_id)
     if new_updated_time == -1:
         raise HTTPException(status_code=500, detail="could not archive for an unknown reason.")
