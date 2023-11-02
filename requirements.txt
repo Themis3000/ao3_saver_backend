@@ -6,3 +6,4 @@ bsdiff4
 jinja2
 stream-zip
 cacheout
+prometheus_fastapi_instrumentator

@@ -6,11 +6,13 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import Response, RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from typing import List
 from cacheout import Cache
 
 app = FastAPI()
+Instrumentator().instrument(app).expose(app)
 bulk_dl_tasks_cache = Cache(maxsize=5000)
 templates = Jinja2Templates(directory="templates/")
 
