@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+gunicorn
 requests
 boto3
 bsdiff4
