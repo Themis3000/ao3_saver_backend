@@ -46,6 +46,8 @@ async def report_work(work: WorkReport, response: Response, request: Request):
         if not fetched_work:
             raise HTTPException(status_code=400, detail="work could not be fetched.")
         response.status_code = 201
+    else:
+        print(f"already archived work {work.work_id} updated at {work.updated_time}, skipping download")
     # TODO:Themis revisit why the updated time is fetched twice. Should this be indented in the if block?
     new_updated_time = db.get_updated_time(work.work_id)
     if new_updated_time == -1:
