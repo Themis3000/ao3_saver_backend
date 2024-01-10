@@ -49,6 +49,7 @@ async def report_work(work: WorkReport, response: Response, request: Request):
     # TODO:Themis revisit why the updated time is fetched twice. Should this be indented in the if block?
     new_updated_time = db.get_updated_time(work.work_id)
     if new_updated_time == -1:
+        print(f"failed to archive {work.work_id} updated at {work.updated_time} for an unknown reason.")
         raise HTTPException(status_code=500, detail="could not archive for an unknown reason.")
     return {"status": "success", "updated": new_updated_time}
 
