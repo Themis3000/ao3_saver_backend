@@ -1,6 +1,7 @@
 import requests
 import db
 import os
+import botocore.exceptions
 
 
 proxies = {}
@@ -15,5 +16,11 @@ def dl_work(work_id, updated_time):
         print(f"got response {response.status_code} when requesting {work_id} updated at {updated_time}")
         return False
     data = response.content
-    db.save_work(work_id, updated_time, data)
+    print(f"successfully downloaded {work_id} updated at {updated_time}")
+    try:
+        db.save_work(work_id, updated_time, data)
+    except botocore.exceptions as err:
+        print(f"error while saving downloaded work {work_id} updated at {updated_time}:")
+        print(err)
+        return False
     return data
