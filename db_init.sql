@@ -38,7 +38,7 @@ CREATE TABLE "dispatches"(
     "dispatched_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
     "dispatched_to" VARCHAR(255) NOT NULL,
     "job_id" BIGINT NOT NULL,
-    "completed" BIGINT NOT NULL
+    "completed" BOOLEAN NOT NULL
 );
 ALTER TABLE
     "dispatches" ADD PRIMARY KEY("dispatch_id");
