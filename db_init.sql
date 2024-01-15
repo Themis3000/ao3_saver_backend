@@ -27,7 +27,8 @@ CREATE INDEX "storage_work_id_index" ON
     "storage"("work_id");
 CREATE TABLE "works"(
     "work_id" INTEGER NOT NULL,
-    "title" TEXT NULL
+    "title" TEXT NULL,
+    "img_enabled" BOOLEAN NOT NULL
 );
 ALTER TABLE
     "works" ADD PRIMARY KEY("work_id");
