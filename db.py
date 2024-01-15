@@ -10,6 +10,7 @@ import boto3
 import botocore
 import os.path
 import bsdiff4
+import psycopg2
 
 public_key = os.environ["S3_PUBLIC_KEY"]
 private_key = os.environ["S3_PRIVATE_KEY"]
@@ -24,6 +25,26 @@ client = session.client('s3',
                         endpoint_url=endpoint_url,
                         aws_access_key_id=public_key,
                         aws_secret_access_key=private_key)
+
+conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
+                        host=os.environ["POSTGRESQL_HOST"],
+                        user=os.environ["POSTGRESQL_USER"],
+                        password=os.environ["POSTGRESQL_PASSWORD"],
+                        port=os.environ["POSTGRESQL_PORT"])
+
+# Check if db has been initialized. If it hasn't been, initialize it.
+queue_table_cursor = conn.cursor()
+queue_table_cursor.execute(
+    "select exists(select * from information_schema.tables where table_name='queue')")
+has_queue = queue_table_cursor.fetchone()[0]
+queue_table_cursor.close()
+if not has_queue:
+    print("initializing database...")
+    init_cursor = conn.cursor()
+    with open("db_init.sql", "r") as f:
+        init_cursor.execute(f.read())
+        conn.commit()
+        init_cursor.close()
 
 
 def save_work(work_id, updated_time, work_data):
