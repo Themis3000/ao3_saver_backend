@@ -1,7 +1,11 @@
 CREATE TABLE "queue"(
     "work_id" INTEGER NOT NULL,
     "updated" BIGINT NOT NULL,
-    "submitted_by" VARCHAR(255) NOT NULL
+    "submitted_by" VARCHAR(255) NOT NULL,
+    "format" VARCHAR(255) NOT NULL,
+    "disbatched" BOOLEAN NOT NULL,
+    "disbatched_to" VARCHAR(255) NULL,
+    "disbatched_time" BIGINT NULL
 );
 ALTER TABLE
     "queue" ADD PRIMARY KEY("work_id");
@@ -14,19 +18,20 @@ CREATE TABLE "storage"(
     "updated_time" BIGINT NOT NULL,
     "location" BIGINT NOT NULL,
     "patch_of" UUID NULL,
-    "retrieved_from" VARCHAR(255) NOT NULL
+    "retrieved_from" VARCHAR(255) NOT NULL,
+    "format" VARCHAR(255) NOT NULL
 );
 ALTER TABLE
     "storage" ADD PRIMARY KEY("storage_id");
 CREATE INDEX "storage_work_id_index" ON
     "storage"("work_id");
-CREATE TABLE "work"(
+CREATE TABLE "works"(
     "work_id" INTEGER NOT NULL,
     "title" TEXT NULL
 );
 ALTER TABLE
-    "work" ADD PRIMARY KEY("work_id");
+    "works" ADD PRIMARY KEY("work_id");
 ALTER TABLE
-    "storage" ADD CONSTRAINT "storage_work_id_foreign" FOREIGN KEY("work_id") REFERENCES "work"("work_id");
+    "storage" ADD CONSTRAINT "storage_work_id_foreign" FOREIGN KEY("work_id") REFERENCES "works"("work_id");
 ALTER TABLE
     "storage" ADD CONSTRAINT "storage_patch_of_foreign" FOREIGN KEY("patch_of") REFERENCES "storage"("storage_id");
