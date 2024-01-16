@@ -107,6 +107,21 @@ def dispatch_job(job_id: int, client_name: str, client_id: str):
     cursor.close()
 
 
+def clear_queue_by_attempts(attempts: int):
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE FROM queue
+        WHERE job_id IN (
+            SELECT job_id
+            FROM dispatches
+            GROUP BY job_id
+            HAVING COUNT(*) >= %s
+        )
+    """, (attempts,))
+    conn.commit()
+    cursor.close()
+
+
 def get_updated_time(work_id):
     try:
         metadataRes = client.head_object(Bucket=bucket, Key=f"{work_id}.pdf")
