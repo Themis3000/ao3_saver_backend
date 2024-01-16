@@ -67,9 +67,18 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
 def get_job():
     cursor = conn.cursor()
 
-    # cursor.execute("SELECT * FROM queue WHERE job_id=%s", (job_id,))
-    # queue_item = cursor.fetchone()
-    # print(queue_item)
+    cursor.execute("""
+    SELECT job_id, work_id, format
+    FROM queue
+    WHERE NOT EXISTS (
+        SELECT *
+        FROM dispatches
+        -- Time should be current time minus delay to redistribute.
+        WHERE dispatches.job_id = queue.job_id AND dispatches.dispatched_time > %s
+    )
+    LIMIT 1;
+    """, (datetime.datetime.now() - datetime.timedelta(minutes=1),))
+    job_id, work_id, work_format = cursor.fetchone()
 
 
 def dispatch_job(job_id: int, client_name: str, client_id: str):

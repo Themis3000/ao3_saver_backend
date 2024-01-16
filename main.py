@@ -50,7 +50,7 @@ class JobRequest(BaseModel):
 
 @app.post("/request_job")
 async def request_job(job_request: JobRequest):
-    db.dispatch_job(3, job_request.client_name, job_request.client_name)
+    db.get_job()
 
 
 @app.get("/works/{work_id}")
