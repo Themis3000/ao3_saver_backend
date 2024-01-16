@@ -1,7 +1,6 @@
 import datetime
 import io
 import re
-import time
 from stat import S_IFREG
 from typing import List
 from typing_extensions import TypedDict
@@ -47,7 +46,7 @@ if not has_queue:
         init_cursor.close()
 
 
-def queue_work(work_id: int, updated_time: int, work_format: str = "pdf", reporter_id: str = "unknown"):
+def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name: str, reporter_id: str):
     cursor = conn.cursor()
 
     cursor.execute("SELECT EXISTS(SELECT 1 FROM queue WHERE work_id=%s AND format=%s)", (work_id, work_format))
@@ -56,9 +55,29 @@ def queue_work(work_id: int, updated_time: int, work_format: str = "pdf", report
         return
 
     cursor.execute(
-        "INSERT INTO queue (work_id, submitted_time, updated, submitted_by, format) VALUES (%s, %s, %s, %s, %s)",
-        (work_id, datetime.datetime.now(datetime.timezone.utc), updated_time, reporter_id, work_format)
+        "INSERT INTO queue"
+        "(work_id, submitted_time, updated, submitted_by_name, submitted_by_id, format)"
+        " VALUES (%s, %s, %s, %s, %s)",
+        (work_id, datetime.datetime.now(datetime.timezone.utc), updated_time, reporter_name, reporter_id, work_format)
     )
+    conn.commit()
+    cursor.close()
+
+
+def get_job():
+    cursor = conn.cursor()
+
+    # cursor.execute("SELECT * FROM queue WHERE job_id=%s", (job_id,))
+    # queue_item = cursor.fetchone()
+    # print(queue_item)
+
+
+def dispatch_job(job_id: int, client_name: str, client_id: str):
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO dispatches"
+                   "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id, completed)"
+                   "VALUES (%s, %s, %s, %s)",
+                   (datetime.datetime.now(), client_name, client_id, job_id, False))
     conn.commit()
     cursor.close()
 

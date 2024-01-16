@@ -3,7 +3,8 @@ CREATE TABLE "queue"(
     "work_id" INTEGER NOT NULL,
     "submitted_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
     "updated" BIGINT NOT NULL,
-    "submitted_by" VARCHAR(255) NOT NULL,
+    "submitted_by_name" VARCHAR(255) NOT NULL,
+    "submitted_by_id" VARCHAR(255) NOT NULL,
     "format" VARCHAR(255) NOT NULL
 );
 ALTER TABLE
@@ -36,9 +37,9 @@ ALTER TABLE
 CREATE TABLE "dispatches"(
     "dispatch_id" SERIAL NOT NULL,
     "dispatched_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
-    "dispatched_to" VARCHAR(255) NOT NULL,
-    "job_id" BIGINT NOT NULL,
-    "completed" BOOLEAN NOT NULL
+    "dispatched_to_name" VARCHAR(255) NOT NULL,
+    "dispatched_to_id" VARCHAR(255) NOT NULL,
+    "job_id" INT NOT NULL
 );
 ALTER TABLE
     "dispatches" ADD PRIMARY KEY("dispatch_id");
@@ -49,4 +50,4 @@ ALTER TABLE
 ALTER TABLE
     "storage" ADD CONSTRAINT "storage_patch_of_foreign" FOREIGN KEY("patch_of") REFERENCES "storage"("storage_id");
 ALTER TABLE
-    "dispatches" ADD CONSTRAINT "dispatches_job_id_foreign" FOREIGN KEY("job_id") REFERENCES "queue"("job_id");
+    "dispatches" ADD CONSTRAINT "dispatches_job_id_foreign" FOREIGN KEY("job_id") REFERENCES "queue"("job_id") ON DELETE CASCADE;

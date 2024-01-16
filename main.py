@@ -40,8 +40,17 @@ class WorkReport(BaseModel):
 
 @app.post("/report_work")
 async def report_work(work: WorkReport):
-    db.queue_work(work.work_id, work.updated_time, work.format, work.reporter)
+    db.queue_work(work.work_id, work.updated_time, work.format, work.reporter, work.reporter)
     return {"status": "queued"}
+
+
+class JobRequest(BaseModel):
+    client_name: str = "Unknown"
+
+
+@app.post("/request_job")
+async def request_job(job_request: JobRequest):
+    db.dispatch_job(3, job_request.client_name, job_request.client_name)
 
 
 @app.get("/works/{work_id}")
