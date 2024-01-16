@@ -58,8 +58,8 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
     cursor.execute(
         "INSERT INTO queue"
         "(work_id, submitted_time, updated, submitted_by_name, submitted_by_id, format)"
-        " VALUES (%s, %s, %s, %s, %s, %s)",
-        (work_id, datetime.datetime.now(datetime.timezone.utc), updated_time, reporter_name, reporter_id, work_format)
+        " VALUES (%s, NOW(), %s, %s, %s, %s)",
+        (work_id, updated_time, reporter_name, reporter_id, work_format)
     )
     conn.commit()
     cursor.close()
@@ -81,11 +81,12 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
         SELECT *
         FROM dispatches
         -- Time should be current time minus delay to redistribute.
-        WHERE dispatches.job_id = queue.job_id AND dispatches.dispatched_time > %s
+        WHERE dispatches.job_id = queue.job_id
+        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:01:00')
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
-    """, (datetime.datetime.now() - datetime.timedelta(minutes=1),))
+    """)
     queue_query = cursor.fetchone()
     cursor.close()
 
@@ -102,12 +103,13 @@ def dispatch_job(job_id: int, client_name: str, client_id: str):
     cursor = conn.cursor()
     cursor.execute("INSERT INTO dispatches"
                    "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id)"
-                   "VALUES (%s, %s, %s, %s)",
-                   (datetime.datetime.now(), client_name, client_id, job_id))
+                   "VALUES (NOW(), %s, %s, %s)",
+                   (client_name, client_id, job_id))
     conn.commit()
     cursor.close()
 
 
+# TODO remove this function if unused by the time this branch is completed
 def clear_queue_by_attempts(attempts: int):
     cursor = conn.cursor()
     cursor.execute("""

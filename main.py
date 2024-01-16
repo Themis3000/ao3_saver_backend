@@ -49,11 +49,10 @@ class JobRequest(BaseModel):
 
 
 @app.post("/request_job")
-async def request_job(job_request: JobRequest, response: Response):
+async def request_job(job_request: JobRequest):
     job = db.get_job(job_request.client_name, job_request.client_name)
 
     if job is None:
-        response.status_code = 204
         return {"status": "queue empty"}
 
     return {"status": "job assigned", **job.dict()}
