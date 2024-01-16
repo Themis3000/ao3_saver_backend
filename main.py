@@ -34,26 +34,14 @@ app.add_middleware(
 class WorkReport(BaseModel):
     work_id: int
     updated_time: int
+    format: str
+    reporter: str = "Unknown"
 
 
 @app.post("/report_work")
-async def report_work(work: WorkReport, response: Response, request: Request):
-    ip = request.headers.get("X-Forwarded-For", request.client.host)
-    print(f"work {work.work_id} updated at {work.updated_time} reported by {ip}")
-    stored_updated_time = db.get_updated_time(work.work_id)
-    if work.updated_time > stored_updated_time:
-        fetched_work = ao3.dl_work(work.work_id, work.updated_time)
-        if not fetched_work:
-            raise HTTPException(status_code=400, detail="work could not be fetched.")
-        response.status_code = 201
-    else:
-        print(f"already archived work {work.work_id} updated at {work.updated_time}, skipping download")
-    # TODO:Themis revisit why the updated time is fetched twice. Should this be indented in the if block?
-    new_updated_time = db.get_updated_time(work.work_id)
-    if new_updated_time == -1:
-        print(f"failed to archive {work.work_id} updated at {work.updated_time} for an unknown reason.")
-        raise HTTPException(status_code=500, detail="could not archive for an unknown reason.")
-    return {"status": "success", "updated": new_updated_time}
+async def report_work(work: WorkReport):
+    db.queue_work(work.work_id, work.updated_time, work.format, work.reporter)
+    return {"status": "queued"}
 
 
 @app.get("/works/{work_id}")

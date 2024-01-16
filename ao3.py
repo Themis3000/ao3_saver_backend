@@ -18,7 +18,7 @@ def dl_work(work_id, updated_time):
     data = response.content
     print(f"successfully downloaded {work_id} updated at {updated_time}")
     try:
-        db.save_work(work_id, updated_time, data)
+        db.store_work(work_id, updated_time, data)
     except botocore.exceptions as err:
         print(f"error while saving downloaded work {work_id} updated at {updated_time}:")
         print(err)

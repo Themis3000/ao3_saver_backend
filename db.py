@@ -47,29 +47,20 @@ if not has_queue:
         init_cursor.close()
 
 
-def save_work(work_id, updated_time, work_data):
-    prev_updated_time = get_updated_time(work_id)
-    if prev_updated_time != -1:  # Checks if there's an existing copy
-        # Gets the old version
-        bytes_buffer = io.BytesIO()
-        client.download_fileobj(Bucket=bucket, Key=f"{work_id}.pdf", Fileobj=bytes_buffer)
-        old_version = bytes_buffer.getvalue()
-        old_metadata_res = client.head_object(Bucket=bucket, Key=f"{work_id}.pdf")
-        old_metadata = old_metadata_res["Metadata"]
-        # Saves a diff file so that the old version can be patched & recovered in the future
-        diff = bsdiff4.diff(work_data, old_version)
-        client.put_object(Bucket=bucket,
-                          Key=f"diff_archive/{work_id}/{prev_updated_time}.diff",
-                          Body=diff,
-                          Metadata=old_metadata)
-        # Cleans up old version to make way for new version
-        client.delete_object(Bucket=bucket, Key=f"{work_id}.pdf")
-    client.put_object(Bucket=bucket,
-                      Key=f"{work_id}.pdf",
-                      Body=work_data,
-                      Metadata={"workupdatedtime": str(updated_time),
-                                "uploadedtime": str(int(time.time())),
-                                "prev_version": str(prev_updated_time)})
+def queue_work(work_id: int, updated_time: int, work_format: str = "pdf", reporter_id: str = "unknown"):
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT EXISTS(SELECT 1 FROM queue WHERE work_id=%s AND format=%s)", (work_id, work_format))
+    queue_item_exists = cursor.fetchone()[0]
+    if queue_item_exists:
+        return
+
+    cursor.execute(
+        "INSERT INTO queue (work_id, submitted_time, updated, submitted_by, format) VALUES (%s, %s, %s, %s, %s)",
+        (work_id, datetime.datetime.now(datetime.timezone.utc), updated_time, reporter_id, work_format)
+    )
+    conn.commit()
+    cursor.close()
 
 
 def get_updated_time(work_id):
@@ -164,3 +155,7 @@ def get_bulk_works(works: List[WorkBulkEntry]):
             yield file_name, datetime.datetime.now(), S_IFREG | 0o600, ZIP_64, work_bytes_gen()
 
     return stream_zip(work_files())
+
+
+def store_work(work_id, updated_time, data):
+    return None
