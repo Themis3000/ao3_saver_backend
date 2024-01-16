@@ -39,7 +39,9 @@ CREATE TABLE "dispatches"(
     "dispatched_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
     "dispatched_to_name" VARCHAR(255) NOT NULL,
     "dispatched_to_id" VARCHAR(255) NOT NULL,
-    "job_id" INT NOT NULL
+    "job_id" INT NOT NULL,
+    "fail_reported" BOOLEAN NOT NULL DEFAULT FALSE,
+    "fail_status" SMALLINT NULL
 );
 ALTER TABLE
     "dispatches" ADD PRIMARY KEY("dispatch_id");
