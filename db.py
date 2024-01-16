@@ -3,6 +3,7 @@ import io
 import re
 from stat import S_IFREG
 from typing import List
+from pydantic import BaseModel
 from typing_extensions import TypedDict
 from stream_zip import stream_zip, ZIP_64
 import boto3
@@ -64,7 +65,13 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
     cursor.close()
 
 
-def get_job():
+class JobOrder(BaseModel):
+    job_id: int
+    work_id: str
+    work_format: str
+
+
+def get_job(client_name: str, client_id: str) -> None | JobOrder:
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -78,7 +85,16 @@ def get_job():
     )
     LIMIT 1;
     """, (datetime.datetime.now() - datetime.timedelta(minutes=1),))
-    job_id, work_id, work_format = cursor.fetchone()
+    queue_query = cursor.fetchone()
+    cursor.close()
+
+    if queue_query is None:
+        return None
+
+    job_order = JobOrder(job_id=queue_query[0], work_id=queue_query[1], work_format=queue_query[2])
+
+    dispatch_job(job_order.job_id, client_name, client_id)
+    return job_order
 
 
 def dispatch_job(job_id: int, client_name: str, client_id: str):
