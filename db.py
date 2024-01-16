@@ -83,6 +83,7 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
         -- Time should be current time minus delay to redistribute.
         WHERE dispatches.job_id = queue.job_id AND dispatches.dispatched_time > %s
     )
+    ORDER BY queue.submitted_time DESC
     LIMIT 1;
     """, (datetime.datetime.now() - datetime.timedelta(minutes=1),))
     queue_query = cursor.fetchone()
