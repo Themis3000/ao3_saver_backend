@@ -75,9 +75,9 @@ def get_job():
 def dispatch_job(job_id: int, client_name: str, client_id: str):
     cursor = conn.cursor()
     cursor.execute("INSERT INTO dispatches"
-                   "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id, completed)"
-                   "VALUES (%s, %s, %s, %s, %s)",
-                   (datetime.datetime.now(), client_name, client_id, job_id, False))
+                   "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id)"
+                   "VALUES (%s, %s, %s, %s)",
+                   (datetime.datetime.now(), client_name, client_id, job_id))
     conn.commit()
     cursor.close()
 
