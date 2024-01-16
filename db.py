@@ -57,7 +57,7 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
     cursor.execute(
         "INSERT INTO queue"
         "(work_id, submitted_time, updated, submitted_by_name, submitted_by_id, format)"
-        " VALUES (%s, %s, %s, %s, %s)",
+        " VALUES (%s, %s, %s, %s, %s, %s)",
         (work_id, datetime.datetime.now(datetime.timezone.utc), updated_time, reporter_name, reporter_id, work_format)
     )
     conn.commit()
@@ -76,7 +76,7 @@ def dispatch_job(job_id: int, client_name: str, client_id: str):
     cursor = conn.cursor()
     cursor.execute("INSERT INTO dispatches"
                    "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id, completed)"
-                   "VALUES (%s, %s, %s, %s)",
+                   "VALUES (%s, %s, %s, %s, %s)",
                    (datetime.datetime.now(), client_name, client_id, job_id, False))
     conn.commit()
     cursor.close()
