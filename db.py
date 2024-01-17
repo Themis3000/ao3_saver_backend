@@ -32,6 +32,7 @@ conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         user=os.environ["POSTGRESQL_USER"],
                         password=os.environ["POSTGRESQL_PASSWORD"],
                         port=os.environ["POSTGRESQL_PORT"])
+conn.autocommit = True
 
 # Check if db has been initialized. If it hasn't been, initialize it.
 queue_table_cursor = conn.cursor()
@@ -44,7 +45,6 @@ if not has_queue:
     init_cursor = conn.cursor()
     with open("db_init.sql", "r") as f:
         init_cursor.execute(f.read())
-        conn.commit()
         init_cursor.close()
 
 
@@ -62,7 +62,6 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
         " VALUES (%s, NOW(), %s, %s, %s, %s)",
         (work_id, updated_time, reporter_name, reporter_id, work_format)
     )
-    conn.commit()
     cursor.close()
 
 
@@ -89,26 +88,27 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
     """)
-    queue_query = cursor.fetchone()
+    queue_query = cursor.fetchall()
+    print(queue_query)
     cursor.close()
 
-    if queue_query is None:
+    if not queue_query:
         return None
 
-    job_id, work_id, work_format = queue_query
+    job_id, work_id, work_format = queue_query[0]
     report_code = dispatch_job(job_id, client_name, client_id)
     job_order = JobOrder(job_id=job_id, work_id=work_id, work_format=work_format, report_code=report_code)
     return job_order
 
 
 def dispatch_job(job_id: int, client_name: str, client_id: str) -> int:
+    print("hit dispatch")
     cursor = conn.cursor()
     report_code = random.randrange(-32768, 32767)
     cursor.execute("INSERT INTO dispatches"
                    "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id, report_code)"
                    "VALUES (NOW(), %s, %s, %s, %s)",
                    (client_name, client_id, job_id, report_code))
-    conn.commit()
     cursor.close()
     return report_code
 
@@ -124,7 +124,6 @@ def clear_queue_by_attempts(attempts: int):
             HAVING COUNT(*) >= %s
         )
     """, (attempts,))
-    conn.commit()
     cursor.close()
 
 
@@ -134,7 +133,6 @@ def mark_job_fail(job_id: int, fail_code: int):
     cursor.execute("""
         
     """)
-    conn.commit()
     cursor.close()
 
 
