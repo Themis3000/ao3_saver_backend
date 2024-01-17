@@ -1,5 +1,6 @@
 import datetime
 import io
+import random
 import re
 from stat import S_IFREG
 from typing import List
@@ -69,6 +70,7 @@ class JobOrder(BaseModel):
     job_id: int
     work_id: str
     work_format: str
+    report_code: int
 
 
 def get_job(client_name: str, client_id: str) -> None | JobOrder:
@@ -93,23 +95,24 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
     if queue_query is None:
         return None
 
-    job_order = JobOrder(job_id=queue_query[0], work_id=queue_query[1], work_format=queue_query[2])
-
-    dispatch_job(job_order.job_id, client_name, client_id)
+    job_id, work_id, work_format = queue_query
+    report_code = dispatch_job(job_id, client_name, client_id)
+    job_order = JobOrder(job_id=job_id, work_id=work_id, work_format=work_format, report_code=report_code)
     return job_order
 
 
-def dispatch_job(job_id: int, client_name: str, client_id: str):
+def dispatch_job(job_id: int, client_name: str, client_id: str) -> int:
     cursor = conn.cursor()
+    report_code = random.randrange(-32768, 32767)
     cursor.execute("INSERT INTO dispatches"
-                   "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id)"
-                   "VALUES (NOW(), %s, %s, %s)",
-                   (client_name, client_id, job_id))
+                   "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id, report_code)"
+                   "VALUES (NOW(), %s, %s, %s, %s)",
+                   (client_name, client_id, job_id, report_code))
     conn.commit()
     cursor.close()
+    return report_code
 
 
-# TODO remove this function if unused by the time this branch is completed
 def clear_queue_by_attempts(attempts: int):
     cursor = conn.cursor()
     cursor.execute("""
@@ -121,6 +124,16 @@ def clear_queue_by_attempts(attempts: int):
             HAVING COUNT(*) >= %s
         )
     """, (attempts,))
+    conn.commit()
+    cursor.close()
+
+
+def mark_job_fail(job_id: int, fail_code: int):
+    # TODO check use query to remove work if it's also had too many failed attempts
+    cursor = conn.cursor()
+    cursor.execute("""
+        
+    """)
     conn.commit()
     cursor.close()
 

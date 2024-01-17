@@ -41,7 +41,8 @@ CREATE TABLE "dispatches"(
     "dispatched_to_id" VARCHAR(255) NOT NULL,
     "job_id" INT NOT NULL,
     "fail_reported" BOOLEAN NOT NULL DEFAULT FALSE,
-    "fail_status" SMALLINT NULL
+    "fail_status" SMALLINT NULL,
+    "report_code" SMALLINT NOT NULL
 );
 ALTER TABLE
     "dispatches" ADD PRIMARY KEY("dispatch_id");

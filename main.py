@@ -58,6 +58,18 @@ async def request_job(job_request: JobRequest):
     return {"status": "job assigned", **job.dict()}
 
 
+class JobFailure(BaseModel):
+    job_id: int
+    fail_status: int
+
+
+@app.post("/job_fail")
+async def fail_job(job: JobFailure):
+    db.mark_job_fail(job.job_id, job.fail_status)
+    # I think it's funny I'm leaving it
+    return {"status": "successfully failed!"}
+
+
 @app.get("/works/{work_id}")
 async def get_work(work_id: int, request: Request):
     work_history = db.get_work_versions(work_id)
