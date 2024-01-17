@@ -41,7 +41,6 @@ queue_table_cursor.execute(
 has_queue = queue_table_cursor.fetchone()[0]
 queue_table_cursor.close()
 if not has_queue:
-    print("initializing database...")
     init_cursor = conn.cursor()
     with open("db_init.sql", "r") as f:
         init_cursor.execute(f.read())
@@ -89,7 +88,6 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
     LIMIT 1;
     """)
     queue_query = cursor.fetchall()
-    print(queue_query)
     cursor.close()
 
     if not queue_query:
@@ -102,7 +100,6 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
 
 
 def dispatch_job(job_id: int, client_name: str, client_id: str) -> int:
-    print("hit dispatch")
     cursor = conn.cursor()
     report_code = random.randrange(-32768, 32767)
     cursor.execute("INSERT INTO dispatches"
