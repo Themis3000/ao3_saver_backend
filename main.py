@@ -1,7 +1,6 @@
 import datetime
 import uuid
 import db
-import ao3
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import Response, RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,13 +58,17 @@ async def request_job(job_request: JobRequest):
 
 
 class JobFailure(BaseModel):
-    job_id: int
+    dispatch_id: int
     fail_status: int
+    report_code: int
 
 
 @app.post("/job_fail")
 async def fail_job(job: JobFailure):
-    db.mark_job_fail(job.job_id, job.fail_status)
+    try:
+        db.mark_dispatch_fail(job.dispatch_id, job.fail_status, job.report_code)
+    except db.NotAuthorizedException:
+        raise HTTPException(status_code=401, detail={"status": "not authorized to report failure"})
     # I think it's funny I'm leaving it
     return {"status": "successfully failed!"}
 

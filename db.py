@@ -124,12 +124,25 @@ def clear_queue_by_attempts(attempts: int):
     cursor.close()
 
 
-def mark_job_fail(job_id: int, fail_code: int):
+class NotAuthorizedException(Exception):
+    """
+    This is used for when an update is not authorized based on the provided values.
+    """
+
+
+def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
     # TODO check use query to remove work if it's also had too many failed attempts
     cursor = conn.cursor()
     cursor.execute("""
-        
-    """)
+        UPDATE dispatches
+        SET fail_reported = true, fail_status = %s
+        WHERE dispatch_id = %s AND report_code = %s
+    """, (fail_code, dispatch_id, report_code))
+
+    if 0 >= cursor.rowcount:
+        # Note that this is thrown if report_code is invalid OR if job_id doesn't exist
+        raise NotAuthorizedException("Not authorized to update given dispatch job id")
+
     cursor.close()
 
 
