@@ -183,5 +183,6 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
 
     cursor.close()
 
+
 def store_work(work_id, updated_time, data):
-    return None
+    pass
