@@ -67,8 +67,12 @@ class JobFailure(BaseModel):
 async def fail_job(job: JobFailure):
     try:
         db.mark_dispatch_fail(job.dispatch_id, job.fail_status, job.report_code)
-    except db.NotAuthorizedException:
-        raise HTTPException(status_code=401, detail={"status": "not authorized to report failure"})
+    except db.NotAuthorized:
+        raise HTTPException(status_code=403, detail="not authorized to report failure")
+    except db.AlreadyReported:
+        raise HTTPException(status_code=409, detail="a fail has already been reported")
+    except db.JobNotFound:
+        raise HTTPException(status_code=404, detail="the dispatch id is invalid")
     # I think it's funny I'm leaving it
     return {"status": "successfully failed!"}
 

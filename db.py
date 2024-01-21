@@ -65,6 +65,7 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
 
 
 class JobOrder(BaseModel):
+    dispatch_id: int
     job_id: int
     work_id: str
     work_format: str
@@ -80,34 +81,40 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
     WHERE NOT EXISTS (
         SELECT *
         FROM dispatches
-        -- Time should be current time minus delay to redistribute.
         WHERE dispatches.job_id = queue.job_id
         AND dispatches.dispatched_time > (NOW() - INTERVAL '00:01:00')
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
     """)
-    queue_query = cursor.fetchall()
+    queue_query = cursor.fetchone()
     cursor.close()
 
     if not queue_query:
         return None
 
-    job_id, work_id, work_format = queue_query[0]
-    report_code = dispatch_job(job_id, client_name, client_id)
-    job_order = JobOrder(job_id=job_id, work_id=work_id, work_format=work_format, report_code=report_code)
+    job_id, work_id, work_format = queue_query
+    dispatch_id, report_code = dispatch_job(job_id, client_name, client_id)
+    job_order = JobOrder(dispatch_id=dispatch_id,
+                         job_id=job_id,
+                         work_id=work_id,
+                         work_format=work_format,
+                         report_code=report_code)
     return job_order
 
 
-def dispatch_job(job_id: int, client_name: str, client_id: str) -> int:
+def dispatch_job(job_id: int, client_name: str, client_id: str) -> tuple[int, int]:
     cursor = conn.cursor()
     report_code = random.randrange(-32768, 32767)
-    cursor.execute("INSERT INTO dispatches"
-                   "(dispatched_time, dispatched_to_name, dispatched_to_id, job_id, report_code)"
-                   "VALUES (NOW(), %s, %s, %s, %s)",
-                   (client_name, client_id, job_id, report_code))
+    cursor.execute("""
+                    INSERT INTO dispatches
+                    (dispatched_time, dispatched_to_name, dispatched_to_id, job_id, report_code)
+                    VALUES (NOW(), %s, %s, %s, %s)
+                    RETURNING dispatch_id;
+                   """, (client_name, client_id, job_id, report_code))
+    dispatch_id = cursor.fetchone()[0]
     cursor.close()
-    return report_code
+    return dispatch_id, report_code
 
 
 def clear_queue_by_attempts(attempts: int):
@@ -124,24 +131,55 @@ def clear_queue_by_attempts(attempts: int):
     cursor.close()
 
 
-class NotAuthorizedException(Exception):
+class NotAuthorized(Exception):
     """
     This is used for when an update is not authorized based on the provided values.
+    Specifically, when a provided authentication code/process was found invalid
     """
+
+
+class JobNotFound(Exception):
+    """This is used when a job can't be found based on the provided values."""
+
+
+class AlreadyReported(Exception):
+    """This is used when something is already reported and did not have any reason to be reported again"""
 
 
 def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
     # TODO check use query to remove work if it's also had too many failed attempts
     cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT report_code, fail_reported, job_id FROM dispatches WHERE dispatch_id = %s
+    """, (dispatch_id,))
+    dispatch_data = cursor.fetchone()
+
+    if dispatch_data is None:
+        raise JobNotFound("invalid dispatch id provided")
+
+    stored_report_code, fail_reported, job_id = dispatch_data
+
+    if report_code != stored_report_code:
+        raise NotAuthorized("Not authorized to update given dispatch id")
+
+    if fail_reported:
+        raise AlreadyReported(f"A fail has already been marked for dispatch id {dispatch_id}")
+
     cursor.execute("""
         UPDATE dispatches
-        SET fail_reported = true, fail_status = %s
-        WHERE dispatch_id = %s AND report_code = %s
-    """, (fail_code, dispatch_id, report_code))
-
-    if 0 >= cursor.rowcount:
-        # Note that this is thrown if report_code is invalid OR if job_id doesn't exist
-        raise NotAuthorizedException("Not authorized to update given dispatch job id")
+        SET fail_reported = true, fail_status = %(fail_status)s
+        WHERE dispatch_id = %(dispatch_id)s;
+        
+        DELETE FROM queue
+        WHERE job_id = %(job_id)s
+            AND (
+                SELECT COUNT(*)
+                FROM dispatches
+                WHERE job_id = %(job_id)s AND fail_reported = true
+                LIMIT 3
+            ) >= 3;
+    """, {"fail_status": fail_code, "dispatch_id": dispatch_id, "job_id": job_id})
 
     cursor.close()
 
