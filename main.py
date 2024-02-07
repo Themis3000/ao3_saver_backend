@@ -1,7 +1,7 @@
 import datetime
 import uuid
 import db
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile
 from fastapi.responses import Response, RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -9,6 +9,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from typing import List
 from cacheout import Cache
+from typing import Annotated
 
 app = FastAPI()
 instrumentator = Instrumentator(should_group_status_codes=False, excluded_handlers=["/metrics"])
@@ -77,6 +78,13 @@ async def fail_job(job: JobFailure):
     return {"status": "successfully failed!"}
 
 
+@app.post("/submit_job")
+async def complete_job(work_id: Annotated[int, Form()],
+                       work: Annotated[UploadFile, File()]):
+    print(work_id)
+    print(work)
+
+
 @app.get("/works/{work_id}")
 async def get_work(work_id: int, request: Request):
     work_history = db.get_work_versions(work_id)
@@ -106,10 +114,7 @@ async def dl_work(work_id: int):
 
 @app.get("/works/dl_historical/{work_id}/{timestamp}")
 async def dl_historical_work(work_id: int, timestamp: int):
-    work = db.get_archived_work(work_id, timestamp)
-    if work is False:
-        raise HTTPException(status_code=404, detail="work not found")
-    return Response(content=work, media_type="application/pdf")
+    pass
 
 
 class BulkRequest(BaseModel):

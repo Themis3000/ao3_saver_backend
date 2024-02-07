@@ -1,4 +1,5 @@
 import random
+from typing_extensions import TypedDict
 from pydantic import BaseModel
 import boto3
 import botocore
@@ -178,3 +179,9 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
 
 def store_work(work_id, updated_time, data):
     pass
+
+
+class WorkBulkEntry(TypedDict):
+    work_id: int
+    title: str
+

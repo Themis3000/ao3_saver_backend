@@ -9,3 +9,4 @@ stream-zip
 cacheout
 prometheus_fastapi_instrumentator
 psycopg2
+python-multipart
