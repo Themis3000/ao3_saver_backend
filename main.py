@@ -65,7 +65,7 @@ class JobFailure(BaseModel):
     report_code: int
 
 
-@app.post("/job_fail")
+@app.post("/job_fail", dependencies=[Depends(admin_token)])
 async def fail_job(job: JobFailure):
     try:
         db.mark_dispatch_fail(job.dispatch_id, job.fail_status, job.report_code)
