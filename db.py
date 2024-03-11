@@ -177,11 +177,41 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
     cursor.close()
 
 
-def store_work(work_id, updated_time, data):
-    pass
-
-
 class WorkBulkEntry(TypedDict):
     work_id: int
     title: str
 
+
+def add_storage_entry(work_id: int, location_type: str, location_id: int, uploaded_time: int, updated_time: int,
+                      location: str, retrieved_from: str, file_format: str, patch_of: int = None) -> int:
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO storage
+        (work_id, location_type, location_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING storage_id;
+    """, [work_id, location_type, location_id, uploaded_time, updated_time, location, patch_of,
+          retrieved_from, file_format])
+    storage_id = cursor.fetchone()[0]
+    cursor.close()
+    return storage_id
+
+
+def update_storage_patch(storage_id: int, patch_of: int, location: str):
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE storage
+        SET patch_of = %(patch_of)s, location = %(location)s
+        WHERE storage_id = %(storage_id)s;
+    """, {"patch_of": patch_of, "location": location, "storage_id": storage_id})
+    cursor.close()
+
+
+def add_work_entry(work_id: int, img_enabled: bool, title: str = None):
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO works
+        (work_id, title, img_enabled)
+        VALUES (%s, %s, %s);
+    """, [work_id, title, img_enabled])
+    cursor.close()

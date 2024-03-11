@@ -18,7 +18,7 @@ CREATE TABLE "storage"(
     "location_id" INTEGER NOT NULL,
     "uploaded_time" BIGINT NOT NULL,
     "updated_time" BIGINT NOT NULL,
-    "location" BIGINT NOT NULL,
+    "location" VARCHAR(255) NOT NULL,
     "patch_of" INTEGER NULL,
     "retrieved_from" VARCHAR(255) NOT NULL,
     "format" VARCHAR(255) NOT NULL

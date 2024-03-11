@@ -79,9 +79,18 @@ async def fail_job(job: JobFailure):
     return {"status": "successfully failed!"}
 
 
-@app.post("/submit_job")
+@app.post("/submit_job", dependencies=[Depends(admin_token)])
+async def complete_job(job_id: Annotated[int, Form()],
+                       work: Annotated[UploadFile, File()]):
+    """For submitting a completed job"""
+    print(job_id)
+    print(work)
+
+
+@app.post("/submit_work", dependencies=[Depends(admin_token)])
 async def complete_job(work_id: Annotated[int, Form()],
                        work: Annotated[UploadFile, File()]):
+    """For submitting a work that was never part of an assigned job"""
     print(work_id)
     print(work)
 
