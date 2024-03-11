@@ -14,8 +14,6 @@ CREATE INDEX "queue_work_id_index" ON
 CREATE TABLE "storage"(
     "storage_id" SERIAL NOT NULL,
     "work_id" INTEGER NOT NULL,
-    "location_type" VARCHAR(255) NOT NULL,
-    "location_id" INTEGER NOT NULL,
     "uploaded_time" BIGINT NOT NULL,
     "updated_time" BIGINT NOT NULL,
     "location" VARCHAR(255) NOT NULL,

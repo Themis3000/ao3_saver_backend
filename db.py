@@ -182,15 +182,15 @@ class WorkBulkEntry(TypedDict):
     title: str
 
 
-def add_storage_entry(work_id: int, location_type: str, location_id: int, uploaded_time: int, updated_time: int,
-                      location: str, retrieved_from: str, file_format: str, patch_of: int = None) -> int:
+def add_storage_entry(work_id: int, uploaded_time: int, updated_time: int, location: str, retrieved_from: str,
+                      file_format: str, patch_of: int = None) -> int:
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO storage
-        (work_id, location_type, location_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING storage_id;
-    """, [work_id, location_type, location_id, uploaded_time, updated_time, location, patch_of,
+    """, [work_id, uploaded_time, updated_time, location, patch_of,
           retrieved_from, file_format])
     storage_id = cursor.fetchone()[0]
     cursor.close()
