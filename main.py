@@ -1,7 +1,7 @@
 import datetime
 import uuid
 import db
-from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile
+from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile, Depends
 from fastapi.responses import Response, RedirectResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import List
 from cacheout import Cache
 from typing import Annotated
+from auth import admin_token
 
 app = FastAPI()
 instrumentator = Instrumentator(should_group_status_codes=False, excluded_handlers=["/metrics"])
@@ -48,7 +49,7 @@ class JobRequest(BaseModel):
     client_name: str = "Unknown"
 
 
-@app.post("/request_job")
+@app.post("/request_job", dependencies=[Depends(admin_token)])
 async def request_job(job_request: JobRequest):
     job = db.get_job(job_request.client_name, job_request.client_name)
 
