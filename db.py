@@ -215,3 +215,15 @@ def add_work_entry(work_id: int, img_enabled: bool, title: str = None):
         VALUES (%s, %s, %s);
     """, [work_id, title, img_enabled])
     cursor.close()
+
+
+def get_head_work_storage_id(work_id: int) -> int:
+    cursor = conn.cursor("""
+        SELECT storage_id
+        FROM storage
+        WHERE work_id = %s AND patch_of IS NULL
+        LIMIT 1;
+    """, [work_id])
+    storage_id = cursor.fetchone()[0]
+    cursor.close()
+    return storage_id
