@@ -1,4 +1,6 @@
 import random
+from typing import Any
+
 from typing_extensions import TypedDict
 from pydantic import BaseModel
 import boto3
@@ -197,13 +199,13 @@ def add_storage_entry(work_id: int, uploaded_time: int, updated_time: int, locat
     return storage_id
 
 
-def update_storage_patch(storage_id: int, patch_of: int, location: str):
+def update_storage_patch(storage_id: int, patch_of: int):
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE storage
-        SET patch_of = %(patch_of)s, location = %(location)s
+        SET patch_of = %(patch_of)s
         WHERE storage_id = %(storage_id)s;
-    """, {"patch_of": patch_of, "location": location, "storage_id": storage_id})
+    """, {"patch_of": patch_of, "storage_id": storage_id})
     cursor.close()
 
 
@@ -217,13 +219,29 @@ def add_work_entry(work_id: int, img_enabled: bool, title: str = None):
     cursor.close()
 
 
-def get_head_work_storage_id(work_id: int) -> int:
+class StorageData(BaseModel):
+    storage_id: int
+    work_id: int
+    uploaded_time: int
+    updated_time: int
+    location: str
+    patch_of: int
+    retrieved_from: str
+    format: str
+
+
+def get_head_work_storage_data(work_id: int) -> StorageData | None:
     cursor = conn.cursor("""
-        SELECT storage_id
+        SELECT *
         FROM storage
         WHERE work_id = %s AND patch_of IS NULL
         LIMIT 1;
     """, [work_id])
-    storage_id = cursor.fetchone()[0]
+    result = cursor.fetchone()
     cursor.close()
-    return storage_id
+
+    if len(result) == 0:
+        return None
+
+    return StorageData(storage_id=result[0], work_id=result[1], uploaded_time=result[2], updated_time=result[3],
+                       location=result[4], patch_of=result[5], retrieved_from=result[6], format=result[7])
