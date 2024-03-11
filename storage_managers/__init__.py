@@ -23,7 +23,7 @@ class StorageManager(ABC):
         self.store_file(storage_key, work)
         storage_id = add_storage_entry(work_id, uploaded_time, updated_time, storage_key, retrieved_from, file_format)
 
-        head_work = get_head_work_storage_data(work_id)
+        head_work = get_head_work_storage_data(work_id, file_format)
         if head_work is not None:  # Create diff file to maintain history
             old_work = self.get_file(head_work.location)
             diff = bsdiff4.diff(work, old_work)
@@ -31,3 +31,7 @@ class StorageManager(ABC):
             update_storage_patch(head_work.storage_id, storage_id)
         else:  # Create record of work existing in db
             add_work_entry(work_id, True)
+
+    def get_work(self, work_id: int, file_format: str) -> bytes:
+        head_work = get_head_work_storage_data(work_id, file_format)
+        return self.get_file(head_work.location)

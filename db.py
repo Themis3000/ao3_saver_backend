@@ -230,13 +230,13 @@ class StorageData(BaseModel):
     format: str
 
 
-def get_head_work_storage_data(work_id: int) -> StorageData | None:
+def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | None:
     cursor = conn.cursor("""
         SELECT *
         FROM storage
-        WHERE work_id = %s AND patch_of IS NULL
+        WHERE work_id = %(work_id)s AND format = %(format)s AND patch_of IS NULL
         LIMIT 1;
-    """, [work_id])
+    """, {"work_id": work_id, "format": file_format})
     result = cursor.fetchone()
     cursor.close()
 
