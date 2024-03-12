@@ -230,8 +230,17 @@ class StorageData(BaseModel):
     format: str
 
 
+def parse_storage_query(result) -> StorageData | None:
+    if len(result) == 0:
+        return None
+
+    return StorageData(storage_id=result[0], work_id=result[1], uploaded_time=result[2], updated_time=result[3],
+                       location=result[4], patch_of=result[5], retrieved_from=result[6], format=result[7])
+
+
 def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | None:
-    cursor = conn.cursor("""
+    cursor = conn.cursor()
+    cursor.execute("""
         SELECT *
         FROM storage
         WHERE work_id = %(work_id)s AND format = %(format)s AND patch_of IS NULL
@@ -240,8 +249,18 @@ def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | 
     result = cursor.fetchone()
     cursor.close()
 
-    if len(result) == 0:
-        return None
+    return parse_storage_query(result)
 
-    return StorageData(storage_id=result[0], work_id=result[1], uploaded_time=result[2], updated_time=result[3],
-                       location=result[4], patch_of=result[5], retrieved_from=result[6], format=result[7])
+
+def get_work_storage_by_timestamp(work_id: int, timestamp: int, file_format: str) -> StorageData | None:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT *
+        FROM storage
+        WHERE work_id = %(work_id)s AND format = %(format)s AND updated_time = %(timestamp)s
+        LIMIT 1;
+    """, {"work_id": work_id, "format": file_format, "timestamp": timestamp})
+    result = cursor.fetchone()
+    cursor.close()
+
+    return parse_storage_query(result)
