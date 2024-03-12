@@ -38,7 +38,7 @@ class StorageManager(ABC):
             self.store_file_compressed(head_work.location, diff)
             update_storage_patch(head_work.storage_id, storage_id)
         else:  # Create record of work existing in db
-            add_work_entry(work_id, True)
+            add_work_entry(work_id, True, work_title)
 
     def get_work(self, work_id: int, file_format: str) -> bytes:
         head_work = get_head_work_storage_data(work_id, file_format)
