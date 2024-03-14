@@ -207,7 +207,7 @@ class StorageData(BaseModel):
     uploaded_time: int
     updated_time: int
     location: str
-    patch_of: int
+    patch_of: int | None
     retrieved_from: str
     format: str
 

@@ -11,6 +11,7 @@ from typing import List
 from cacheout import Cache
 from typing import Annotated
 from auth import admin_token
+from file_storage import storage
 
 app = FastAPI()
 instrumentator = Instrumentator(should_group_status_codes=False, excluded_handlers=["/metrics"])
@@ -115,9 +116,9 @@ async def get_work(work_id: int, request: Request):
 
 
 @app.get("/works/dl/{work_id}")
-async def dl_work(work_id: int):
-    work = db.get_work(work_id)
-    if work is False:
+async def dl_work(work_id: int, file_format: str = "pdf"):
+    work = storage.get_work(work_id, file_format)
+    if work is None:
         raise HTTPException(status_code=404, detail="work not found")
     return Response(content=work, media_type="application/pdf")
 
