@@ -4,6 +4,8 @@ from pydantic import BaseModel
 import os.path
 import psycopg2
 
+valid_formats = ["pdf", "epub", "azw3", "mobi", "html"]
+
 conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         host=os.environ["POSTGRESQL_HOST"],
                         user=os.environ["POSTGRESQL_USER"],
@@ -24,7 +26,14 @@ if not has_queue:
         init_cursor.close()
 
 
+class InvalidFormat(Exception):
+    pass
+
+
 def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name: str, reporter_id: str):
+    if work_format not in valid_formats:
+        raise InvalidFormat(f"{work_format} is not a valid format")
+
     cursor = conn.cursor()
 
     cursor.execute("SELECT EXISTS(SELECT 1 FROM queue WHERE work_id=%s AND format=%s)", (work_id, work_format))
