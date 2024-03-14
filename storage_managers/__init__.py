@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from db import get_head_work_storage_data, add_storage_entry, add_work_entry, update_storage_patch
+from db import get_head_work_storage_data, add_storage_entry, add_work_entry, update_storage_patch,\
+    get_work_storage_by_timestamp, get_storage_entry
 import uuid
 import bsdiff4
 import zlib
@@ -24,7 +25,6 @@ class StorageManager(ABC):
     def get_file_compressed(self, key: str) -> bytes:
         return zlib.decompress(self.get_file(key))
 
-# add zipping
     def store_work(self, work_id: int, work: bytes, uploaded_time: int, updated_time: int, retrieved_from: str,
                    file_format: str, work_title=None) -> None:
         storage_key = f"{work_id}_{uuid.uuid4()}"
@@ -43,3 +43,25 @@ class StorageManager(ABC):
     def get_work(self, work_id: int, file_format: str) -> bytes:
         head_work = get_head_work_storage_data(work_id, file_format)
         return self.get_file_compressed(head_work.location)
+
+    def get_archived_work(self, work_id: int, timestamp: int, file_format: str) -> bytes:
+        work_entry = get_work_storage_by_timestamp(work_id, timestamp, file_format)
+        storage_patches = []  # list of storage entries to be fetched for patching
+        for _ in range(100):  # limiting iterations just in case
+            storage_patches.insert(0, work_entry)
+            if work_entry.patch_of is None:
+                break
+            work_entry = get_storage_entry(work_entry.patch_of)
+        else:
+            raise TooManyIterations("Too many iterations to reach head work. Is there an infinite loop?")
+
+        master_file = self.get_file_compressed(storage_patches.pop().location)
+        for storage_patch in storage_patches:
+            diff_bytes = self.get_file_compressed(storage_patch.pop().location)
+            master_file = bsdiff4.patch(master_file, diff_bytes)
+
+        return master_file
+
+
+class TooManyIterations(Exception):
+    pass

@@ -264,3 +264,17 @@ def get_work_storage_by_timestamp(work_id: int, timestamp: int, file_format: str
     cursor.close()
 
     return parse_storage_query(result)
+
+
+def get_storage_entry(storage_id: int) -> StorageData | None:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT *
+        FROM storage
+        WHERE storage_id = %(storage_id)s
+        LIMIT 1;
+    """, {"storage_id": storage_id})
+    result = cursor.fetchone()
+    cursor.close()
+
+    return parse_storage_query(result)
