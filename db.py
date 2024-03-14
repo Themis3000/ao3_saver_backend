@@ -56,13 +56,14 @@ class JobOrder(BaseModel):
     work_id: str
     work_format: str
     report_code: int
+    updated: int
 
 
 def get_job(client_name: str, client_id: str) -> None | JobOrder:
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT job_id, work_id, format
+    SELECT job_id, work_id, format, updated
     FROM queue
     WHERE NOT EXISTS (
         SELECT *
@@ -79,13 +80,14 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
     if not queue_query:
         return None
 
-    job_id, work_id, work_format = queue_query
+    job_id, work_id, work_format, updated = queue_query
     dispatch_id, report_code = dispatch_job(job_id, client_name, client_id)
     job_order = JobOrder(dispatch_id=dispatch_id,
                          job_id=job_id,
                          work_id=work_id,
                          work_format=work_format,
-                         report_code=report_code)
+                         report_code=report_code,
+                         updated=updated)
     return job_order
 
 

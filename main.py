@@ -82,9 +82,11 @@ async def fail_job(job: JobFailure):
 
 @app.post("/submit_job", dependencies=[Depends(admin_token)])
 async def complete_job(job_id: Annotated[int, Form()],
+                       report_code: Annotated[int, Form()],
                        work: Annotated[UploadFile, File()]):
     """For submitting a completed job"""
     print(job_id)
+    print(report_code)
     print(work)
 
 
