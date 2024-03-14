@@ -1,26 +1,8 @@
 import random
-from typing import Any
-
 from typing_extensions import TypedDict
 from pydantic import BaseModel
-import boto3
-import botocore
 import os.path
 import psycopg2
-
-public_key = os.environ["S3_PUBLIC_KEY"]
-private_key = os.environ["S3_PRIVATE_KEY"]
-region = os.environ["S3_REGION_NAME"]
-endpoint_url = os.environ["S3_ENDPOINT"]
-bucket = os.environ["S3_BUCKET"]
-
-session = boto3.session.Session()
-client = session.client('s3',
-                        config=botocore.config.Config(s3={'addressing_style': 'virtual'}),
-                        region_name=region,
-                        endpoint_url=endpoint_url,
-                        aws_access_key_id=public_key,
-                        aws_secret_access_key=private_key)
 
 conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         host=os.environ["POSTGRESQL_HOST"],
