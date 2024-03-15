@@ -21,8 +21,13 @@ formats = {"pdf": "application/pdf",
 
 
 def do_task():
-    job_res = requests.post(request_endpoint, headers=auth_header, data={"client_name": auth_header})
+    job_res = requests.post(request_endpoint, headers=auth_header, json={"client_name": client_name})
     job_info = job_res.json()
+    print(job_info)
+
+    if job_info["status"] == "queue empty":
+        print("No jobs available in queue")
+        return
 
     print(f"downloading {job_info['work_id']} updated at {job_info['updated']} in {job_info['format']} format...")
     response = requests.get(
@@ -44,5 +49,6 @@ def do_task():
         return
 
     print("Work report success!")
+
 
 do_task()
