@@ -30,13 +30,13 @@ def do_task():
         return
 
     print(f"downloading {job_info['work_id']} updated at {job_info['updated']} in {job_info['format']} format...")
-    response = requests.get(
+    dl_response = requests.get(
         f"https://download.archiveofourown.org/downloads/{job_info['work_id']}/file.pdf?updated_at={job_info['updated']}",
         proxies=proxies)
-    if not response.ok or response.headers["Content-Type"] != formats[job_info["format"]]:
-        print(f"got response {response.status_code} when requesting {job_info['work_id']} updated at {job_info['updated']} in {job_info['format']} format, reporting to server...")
+    if not dl_response.ok or dl_response.headers["Content-Type"] != formats[job_info["format"]]:
+        print(f"got response {dl_response.status_code} when requesting {job_info['work_id']} updated at {job_info['updated']} in {job_info['format']} format, reporting to server...")
         return  # TODO: Report error to server here
-    data = response.content
+    data = dl_response.content
     print(f"successfully downloaded {job_info['work_id']} updated at {job_info['updated']}, reporting to server...")
 
     submit_res = requests.post(submit_endpoint,
@@ -44,7 +44,7 @@ def do_task():
                                files={"work": data},
                                data={"job_id": job_info["job_id"], "report_code": job_info["report_code"]})
 
-    if not response.ok:
+    if not submit_res.ok:
         print(f"Work report has failed")
         return
 
