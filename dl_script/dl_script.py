@@ -29,12 +29,12 @@ def do_task():
         print("No jobs available in queue")
         return
 
-    print(f"downloading {job_info['work_id']} updated at {job_info['updated']} in {job_info['format']} format...")
+    print(f"downloading {job_info['work_id']} updated at {job_info['updated']} in {job_info['work_format']} format...")
     dl_response = requests.get(
         f"https://download.archiveofourown.org/downloads/{job_info['work_id']}/file.pdf?updated_at={job_info['updated']}",
         proxies=proxies)
-    if not dl_response.ok or dl_response.headers["Content-Type"] != formats[job_info["format"]]:
-        print(f"got response {dl_response.status_code} when requesting {job_info['work_id']} updated at {job_info['updated']} in {job_info['format']} format, reporting to server...")
+    if not dl_response.ok or dl_response.headers["Content-Type"] != formats[job_info["work_format"]]:
+        print(f"got response {dl_response.status_code} when requesting {job_info['work_id']} updated at {job_info['updated']} in {job_info['work_format']} format, reporting to server...")
         return  # TODO: Report error to server here
     data = dl_response.content
     print(f"successfully downloaded {job_info['work_id']} updated at {job_info['updated']}, reporting to server...")
