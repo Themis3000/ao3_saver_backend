@@ -321,9 +321,8 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
     remove_from_queue(job_id)
 
 
-# TODO: Themis implement this function
-def sideload_work():
-    pass
+def sideload_work(work_id, work, updated_time, submitted_by, file_format):
+    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
 
 
 def update_work_entry(work_id, img_enabled: bool = None, title: str = None):
