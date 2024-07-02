@@ -57,7 +57,9 @@ class StorageManager(ABC):
 
         master_file = self.get_file_compressed(storage_patches.pop().location)
         for storage_patch in storage_patches:
-            diff_bytes = self.get_file_compressed(storage_patch.pop().location)
+            # TODO:Themis this looked like a bug so I fixed it blindly. Was it a bug? If so, remove commented code.
+            # diff_bytes = self.get_file_compressed(storage_patch.pop().location)
+            diff_bytes = self.get_file_compressed(storage_patch.location)
             master_file = bsdiff4.patch(master_file, diff_bytes)
 
         return master_file

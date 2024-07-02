@@ -1,8 +1,11 @@
 import random
+import time
+
 from typing_extensions import TypedDict
 from pydantic import BaseModel
 import os.path
 import psycopg2
+import storage_managers
 
 valid_formats = ["pdf", "epub", "azw3", "mobi", "html"]
 
@@ -12,6 +15,8 @@ conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         password=os.environ["POSTGRESQL_PASSWORD"],
                         port=os.environ["POSTGRESQL_PORT"])
 conn.autocommit = True
+
+storage = storage_managers.S3Manager()
 
 # Check if db has been initialized. If it hasn't been, initialize it.
 queue_table_cursor = conn.cursor()
@@ -69,7 +74,7 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
         SELECT *
         FROM dispatches
         WHERE dispatches.job_id = queue.job_id
-        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:01:00')
+        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:03:00')
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
@@ -265,9 +270,76 @@ def get_storage_entry(storage_id: int) -> StorageData | None:
         SELECT *
         FROM storage
         WHERE storage_id = %(storage_id)s
-        LIMIT 1;
     """, {"storage_id": storage_id})
     result = cursor.fetchone()
     cursor.close()
 
     return parse_storage_query(result)
+
+
+def remove_from_queue(job_id: int):
+    """Removed an item from the queue. Note that the database handles removing associated dispatches automatically."""
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE
+        FROM queue
+        WHERE job_id = %(job_id)s
+    """, {"job_id": job_id})
+    cursor.close()
+
+
+def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT report_code, job_id
+        FROM dispatches
+        WHERE dispatch_id = %(dispatch_id)s
+    """, {"dispatch_id": dispatch_id})
+    result = cursor.fetchone()
+    cursor.close()
+
+    true_report_code, job_id = result[0]
+
+    if true_report_code is None:
+        raise JobNotFound("Invalid job_id provided")
+
+    if report_code != true_report_code:
+        raise NotAuthorized("You did not provide the proper report code for this work job")
+
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT work_id, updated, submitted_by_name, format
+        FROM queue
+        WHERE job_id = %(job_id)s
+    """, {"job_id": job_id})
+    result = cursor.fetchone()
+    cursor.close()
+
+    work_id, updated_time, submitted_by, file_format = result[0]
+
+    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
+    remove_from_queue(job_id)
+
+
+# TODO: Themis implement this function
+def sideload_work():
+    pass
+
+
+def update_work_entry(work_id, img_enabled: bool = None, title: str = None):
+    cursor = conn.cursor()
+    cursor.execute("""
+        do $$
+        BEGIN
+        
+        IF (SELECT EXISTS(SELECT 1 FROM works WHERE work_id=%(work_id)s)) then
+            UPDATE works
+            SET img_enabled = %(img_enabled)s, title = %(title)s
+            WHERE work_id=%(work_id)s;
+        else
+            INSERT INTO works (work_id, title, img_enabled)
+            VALUES (%(work_id)s, %(title)s, %(img_enabled)s);
+        end if;
+        end $$
+    """, {"work_id": work_id, "img_enabled": img_enabled, "title": title})
+    cursor.close()
