@@ -19,7 +19,9 @@ CREATE TABLE "storage"(
     "location" VARCHAR(255) NOT NULL,
     "patch_of" INTEGER NULL,
     "retrieved_from" VARCHAR(255) NOT NULL,
-    "format" VARCHAR(255) NOT NULL
+    "format" VARCHAR(255) NOT NULL,
+    "title" VARCHAR(255) NULL,
+    "img_enabled" BOOLEAN NOT NULL DEFAULT True
 );
 ALTER TABLE
     "storage" ADD PRIMARY KEY("storage_id");
