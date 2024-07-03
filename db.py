@@ -101,14 +101,16 @@ def dispatch_job(job_id: int, client_name: str, client_id: str) -> tuple[int, in
     cursor.execute("""
                     INSERT INTO dispatches
                     (dispatched_time, dispatched_to_name, dispatched_to_id, job_id, report_code)
-                    VALUES (NOW(), %s, %s, %s, %s)
+                    VALUES (NOW(), %(client_name)s, %(client_id)s, %(job_id)s, %(report_code)s)
                     RETURNING dispatch_id;
-                   """, (client_name, client_id, job_id, report_code))
+                   """, {"client_name": client_name, "client_id": client_id, "job_id": job_id,
+                         "report_code": report_code})
     dispatch_id = cursor.fetchone()[0]
     cursor.close()
     return dispatch_id, report_code
 
 
+# TODO:Themis Remove this if there's still no use by the time everything is finished.
 def clear_queue_by_attempts(attempts: int):
     cursor = conn.cursor()
     cursor.execute("""
@@ -143,7 +145,9 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT report_code, fail_reported, job_id FROM dispatches WHERE dispatch_id = %s
+        SELECT report_code, fail_reported, job_id
+        FROM dispatches
+        WHERE dispatch_id = %s AND fail_reported = false
     """, (dispatch_id,))
     dispatch_data = cursor.fetchone()
 
@@ -277,7 +281,6 @@ def get_storage_entry(storage_id: int) -> StorageData | None:
 
 
 def remove_from_queue(job_id: int):
-    """Removed an item from the queue. Note that the database handles removing associated dispatches automatically."""
     cursor = conn.cursor()
     cursor.execute("""
         DELETE
@@ -292,7 +295,7 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
     cursor.execute("""
         SELECT report_code, job_id
         FROM dispatches
-        WHERE dispatch_id = %(dispatch_id)s
+        WHERE dispatch_id = %(dispatch_id)s AND fail_reported = false
     """, {"dispatch_id": dispatch_id})
     result = cursor.fetchone()
     cursor.close()
