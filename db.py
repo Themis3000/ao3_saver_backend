@@ -35,7 +35,7 @@ class InvalidFormat(Exception):
     pass
 
 
-def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name: str, reporter_id: str):
+def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: str):
     if work_format not in valid_formats:
         raise InvalidFormat(f"{work_format} is not a valid format")
 
@@ -50,7 +50,7 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
         INSERT INTO queue
         (work_id, submitted_time, updated, submitted_by_id, format)
         VALUES (%(work_id)s, NOW(), %(updated)s, %(submitted_by_id)s, %(format)s);
-    """)
+    """, {"work_id": work_id, "updated": updated_time, "submitted_by_id": reporter_id})
     cursor.close()
 
 

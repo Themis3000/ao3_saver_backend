@@ -42,7 +42,7 @@ class WorkReport(BaseModel):
 
 @app.post("/report_work")
 async def report_work(work: WorkReport):
-    db.queue_work(work.work_id, work.updated_time, work.format, work.reporter, work.reporter)
+    db.queue_work(work.work_id, work.updated_time, work.format, work.reporter)
     return {"status": "queued"}
 
 
