@@ -3,7 +3,6 @@ CREATE TABLE "queue"(
     "work_id" INTEGER NOT NULL,
     "submitted_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
     "updated" BIGINT NOT NULL,
-    "submitted_by_name" VARCHAR(255) NOT NULL,
     "submitted_by_id" VARCHAR(255) NOT NULL,
     "format" VARCHAR(255) NOT NULL
 );

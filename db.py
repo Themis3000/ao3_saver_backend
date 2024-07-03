@@ -46,12 +46,11 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_name:
     if queue_item_exists:
         return
 
-    cursor.execute(
-        "INSERT INTO queue"
-        "(work_id, submitted_time, updated, submitted_by_name, submitted_by_id, format)"
-        " VALUES (%s, NOW(), %s, %s, %s, %s)",
-        (work_id, updated_time, reporter_name, reporter_id, work_format)
-    )
+    cursor.execute("""
+        INSERT INTO queue
+        (work_id, submitted_time, updated, submitted_by_id, format)
+        VALUES (%(work_id)s, NOW(), %(updated)s, %(submitted_by_id)s, %(format)s);
+    """)
     cursor.close()
 
 
