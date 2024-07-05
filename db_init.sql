@@ -23,9 +23,9 @@ CREATE TABLE "storage"(
     "img_enabled" BOOLEAN NOT NULL DEFAULT True
 );
 ALTER TABLE
-    "storage" ADD PRIMARY KEY("storage_id");
+    works_storage ADD PRIMARY KEY("storage_id");
 CREATE INDEX "storage_work_id_index" ON
-    "storage"("work_id");
+    works_storage("work_id");
 CREATE TABLE "dispatches"(
     "dispatch_id" SERIAL NOT NULL,
     "dispatched_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
@@ -43,6 +43,6 @@ CREATE INDEX "dispatches_job_id_index" ON
 create index dispatches_fail_reported_index
     on dispatches (fail_reported);
 ALTER TABLE
-    "storage" ADD CONSTRAINT "storage_patch_of_foreign" FOREIGN KEY("patch_of") REFERENCES "storage"("storage_id");
+    works_storage ADD CONSTRAINT "storage_patch_of_foreign" FOREIGN KEY("patch_of") REFERENCES works_storage("storage_id");
 ALTER TABLE
     "dispatches" ADD CONSTRAINT "dispatches_job_id_foreign" FOREIGN KEY("job_id") REFERENCES "queue"("job_id");

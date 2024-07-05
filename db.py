@@ -52,7 +52,7 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
 
     cursor.execute("""
         SELECT EXISTS(
-            SELECT FROM storage
+            SELECT FROM works_storage
             WHERE work_id=%(work_id)s AND format=%(work_format)s AND updated_time>%(updated_time)s
         )
         OR EXISTS(
@@ -207,7 +207,7 @@ def add_storage_entry(work_id: int, uploaded_time: int, updated_time: int, locat
                       file_format: str, patch_of: int = None) -> int:
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO storage
+        INSERT INTO works_storage
         (work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING storage_id;
@@ -221,7 +221,7 @@ def add_storage_entry(work_id: int, uploaded_time: int, updated_time: int, locat
 def update_storage_patch(storage_id: int, patch_of: int):
     cursor = conn.cursor()
     cursor.execute("""
-        UPDATE storage
+        UPDATE works_storage
         SET patch_of = %(patch_of)s
         WHERE storage_id = %(storage_id)s;
     """, {"patch_of": patch_of, "storage_id": storage_id})
@@ -251,7 +251,7 @@ def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | 
     cursor = conn.cursor()
     cursor.execute("""
         SELECT *
-        FROM storage
+        FROM works_storage
         WHERE work_id = %(work_id)s AND format = %(format)s AND patch_of IS NULL
         LIMIT 1;
     """, {"work_id": work_id, "format": file_format})
@@ -265,7 +265,7 @@ def get_work_storage_by_timestamp(work_id: int, timestamp: int, file_format: str
     cursor = conn.cursor()
     cursor.execute("""
         SELECT *
-        FROM storage
+        FROM works_storage
         WHERE work_id = %(work_id)s AND format = %(format)s AND uploaded_time = %(timestamp)s
         LIMIT 1;
     """, {"work_id": work_id, "format": file_format, "timestamp": timestamp})
@@ -279,7 +279,7 @@ def get_storage_entry(storage_id: int) -> StorageData | None:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT *
-        FROM storage
+        FROM works_storage
         WHERE storage_id = %(storage_id)s
     """, {"storage_id": storage_id})
     result = cursor.fetchone()
