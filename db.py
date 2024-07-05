@@ -48,7 +48,7 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
     cursor.execute("""
         SELECT EXISTS(
             SELECT FROM storage
-            WHERE work_id=%(work_id)s AND format=%(work_format)s AND updated_time=%(updated_time)s
+            WHERE work_id=%(work_id)s AND format=%(work_format)s AND updated_time>%(updated_time)s
         )
         OR EXISTS(
             SELECT FROM queue
