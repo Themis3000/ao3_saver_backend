@@ -1,5 +1,10 @@
+import datetime
 import random
+import re
 import time
+from stat import S_IFREG
+from typing import List
+from stream_zip import stream_zip, ZIP_64
 from typing_extensions import TypedDict
 from pydantic import BaseModel
 import os.path
@@ -349,3 +354,26 @@ def update_work_entry(work_id, img_enabled: bool = None, title: str = None):
         end $$
     """, {"work_id": work_id, "img_enabled": img_enabled, "title": title})
     cursor.close()
+
+
+re_clean_filename = re.compile(r"[/\\?%*:|\"<>\x7F\x00-\x1F]")
+
+
+def get_bulk_works(works: List[WorkBulkEntry]):
+    from file_storage import storage
+    failed_works = []
+
+    def work_files():
+        for work in works:
+            work_contents = storage.get_work(work["work_id"])
+            if work_contents is False:
+                failed_works.append(work)
+                continue
+
+            def work_bytes_gen():
+                yield work_contents
+
+            file_name = re_clean_filename.sub('-', f"{work['title']} ({work['work_id']}).pdf")
+            yield file_name, datetime.datetime.now(), S_IFREG | 0o600, ZIP_64, work_bytes_gen()
+
+    return stream_zip(work_files())

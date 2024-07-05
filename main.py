@@ -138,7 +138,6 @@ class BulkRequest(BaseModel):
     works: List[db.WorkBulkEntry]
 
 
-# This is broken at the moment.
 @app.post("/works/dl/bulk_prepare")
 async def bulk_download_prep(work_requests: BulkRequest):
     dl_key = uuid.uuid4().hex
@@ -146,7 +145,6 @@ async def bulk_download_prep(work_requests: BulkRequest):
     return {"dl_id": dl_key}
 
 
-# This is broken at the moment.
 @app.get("/works/dl/bulk_dl/{dl_id}")
 async def bulk_download(dl_id: str):
     works = bulk_dl_tasks_cache.get(dl_id)
