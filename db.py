@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import os.path
 import psycopg2
 
-valid_formats = ["pdf", "epub", "azw3", "mobi", "html"]
+valid_formats = ["pdf", "epub", "azw3", "mobi", "html", "txt"]
 
 conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         host=os.environ["POSTGRESQL_HOST"],
