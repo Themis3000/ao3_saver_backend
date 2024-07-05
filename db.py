@@ -315,11 +315,13 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
 
     work_id, updated_time, submitted_by, file_format = result[0]
 
+    from file_storage import storage
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
     remove_from_queue(job_id)
 
 
 def sideload_work(work_id, work, updated_time, submitted_by, file_format):
+    from file_storage import storage
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
 
 
