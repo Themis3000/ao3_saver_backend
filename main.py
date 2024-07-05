@@ -90,10 +90,13 @@ async def complete_job(dispatch_id: Annotated[int, Form()],
 
 @app.post("/submit_work", dependencies=[Depends(admin_token)])
 async def complete_job(work_id: Annotated[int, Form()],
-                       work: Annotated[UploadFile, File()]):
+                       work: Annotated[UploadFile, File()],
+                       file_format: Annotated[str, Form()],
+                       updated_time: Annotated[int, Form()],
+                       requester_id: Annotated[str, Form()]):
     """For submitting a work that was never part of an assigned job"""
-    print(work_id)
-    print(work)
+    db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format)
+    return {"status": "successfully submitted"}
 
 
 @app.get("/works/{work_id}")
