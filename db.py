@@ -206,16 +206,6 @@ def update_storage_patch(storage_id: int, patch_of: int):
     cursor.close()
 
 
-def add_work_entry(work_id: int, img_enabled: bool, title: str = None):
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO works
-        (work_id, title, img_enabled)
-        VALUES (%s, %s, %s);
-    """, [work_id, title, img_enabled])
-    cursor.close()
-
-
 class StorageData(BaseModel):
     storage_id: int
     work_id: int
@@ -228,7 +218,7 @@ class StorageData(BaseModel):
 
 
 def parse_storage_query(result) -> StorageData | None:
-    if len(result) == 0:
+    if result is None:
         return None
 
     return StorageData(storage_id=result[0], work_id=result[1], uploaded_time=result[2], updated_time=result[3],

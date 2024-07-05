@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from db import get_head_work_storage_data, add_storage_entry, add_work_entry, update_storage_patch,\
-    get_work_storage_by_timestamp, get_storage_entry
+from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch, get_work_storage_by_timestamp,
+                get_storage_entry)
 import uuid
 import bsdiff4
 import zlib
@@ -26,19 +26,17 @@ class StorageManager(ABC):
         return zlib.decompress(self.get_file(key))
 
     def store_work(self, work_id: int, work: bytes, uploaded_time: int, updated_time: int, retrieved_from: str,
-                   file_format: str, work_title=None) -> None:
+                   file_format: str) -> None:
         storage_key = f"{work_id}_{uuid.uuid4()}"
         self.store_file_compressed(storage_key, work)
+        previous_head_work = get_head_work_storage_data(work_id, file_format)
         storage_id = add_storage_entry(work_id, uploaded_time, updated_time, storage_key, retrieved_from, file_format)
 
-        head_work = get_head_work_storage_data(work_id, file_format)
-        if head_work is not None:  # Create diff file to maintain history
-            old_work = self.get_file_compressed(head_work.location)
+        if previous_head_work is not None:  # Create diff file to maintain history
+            old_work = self.get_file_compressed(previous_head_work.location)
             diff = bsdiff4.diff(work, old_work)
-            self.store_file_compressed(head_work.location, diff)
-            update_storage_patch(head_work.storage_id, storage_id)
-        else:  # Create record of work existing in db
-            add_work_entry(work_id, True, work_title)
+            self.store_file_compressed(previous_head_work.location, diff)
+            update_storage_patch(previous_head_work.storage_id, storage_id)
 
     def get_work(self, work_id: int, file_format: str) -> bytes:
         head_work = get_head_work_storage_data(work_id, file_format)

@@ -26,13 +26,6 @@ ALTER TABLE
     "storage" ADD PRIMARY KEY("storage_id");
 CREATE INDEX "storage_work_id_index" ON
     "storage"("work_id");
-CREATE TABLE "works"(
-    "work_id" INTEGER NOT NULL,
-    "title" TEXT NULL,
-    "img_enabled" BOOLEAN NOT NULL
-);
-ALTER TABLE
-    "works" ADD PRIMARY KEY("work_id");
 CREATE TABLE "dispatches"(
     "dispatch_id" SERIAL NOT NULL,
     "dispatched_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
@@ -49,8 +42,6 @@ CREATE INDEX "dispatches_job_id_index" ON
     "dispatches"("job_id");
 create index dispatches_fail_reported_index
     on dispatches (fail_reported);
-ALTER TABLE
-    "storage" ADD CONSTRAINT "storage_work_id_foreign" FOREIGN KEY("work_id") REFERENCES "works"("work_id");
 ALTER TABLE
     "storage" ADD CONSTRAINT "storage_patch_of_foreign" FOREIGN KEY("patch_of") REFERENCES "storage"("storage_id");
 ALTER TABLE
