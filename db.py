@@ -6,6 +6,14 @@ import os.path
 import psycopg2
 
 valid_formats = ["pdf", "epub", "azw3", "mobi", "html", "txt"]
+format_mimetypes = {
+    "pdf": "application/pdf",
+    "epub": "application/epub+zip",
+    "azw3": "application/vnd.amazon.ebook",
+    "mobi": "application/x-mobipocket-ebook",
+    "html": "text/html",
+    "txt": "text/plain"
+}
 
 conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         host=os.environ["POSTGRESQL_HOST"],

@@ -38,8 +38,10 @@ class StorageManager(ABC):
             self.store_file_compressed(previous_head_work.location, diff)
             update_storage_patch(previous_head_work.storage_id, storage_id)
 
-    def get_work(self, work_id: int, file_format: str) -> bytes:
+    def get_work(self, work_id: int, file_format: str) -> bytes | None:
         head_work = get_head_work_storage_data(work_id, file_format)
+        if head_work is None:
+            return None
         return self.get_file_compressed(head_work.location)
 
     def get_archived_work(self, work_id: int, timestamp: int, file_format: str) -> bytes:
