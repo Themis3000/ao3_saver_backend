@@ -16,7 +16,7 @@ from file_storage import storage
 app = FastAPI()
 instrumentator = Instrumentator(should_group_status_codes=False, excluded_handlers=["/metrics"])
 instrumentator.instrument(app).expose(app)
-bulk_dl_tasks_cache = Cache(maxsize=5000)
+bulk_dl_tasks_cache = Cache(maxsize=50)
 templates = Jinja2Templates(directory="templates/")
 
 origins = [
