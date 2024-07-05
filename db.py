@@ -252,7 +252,7 @@ def get_work_storage_by_timestamp(work_id: int, timestamp: int, file_format: str
     cursor.execute("""
         SELECT *
         FROM storage
-        WHERE work_id = %(work_id)s AND format = %(format)s AND updated_time = %(timestamp)s
+        WHERE work_id = %(work_id)s AND format = %(format)s AND uploaded_time = %(timestamp)s
         LIMIT 1;
     """, {"work_id": work_id, "format": file_format, "timestamp": timestamp})
     result = cursor.fetchone()

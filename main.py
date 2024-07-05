@@ -127,8 +127,11 @@ async def dl_work(work_id: int, file_format: str = "pdf"):
 
 
 @app.get("/works/dl_historical/{work_id}/{timestamp}")
-async def dl_historical_work(work_id: int, timestamp: int):
-    pass
+async def dl_historical_work(work_id: int, timestamp: int, file_format: str = "pdf"):
+    work = storage.get_archived_work(work_id, timestamp, file_format)
+    if work is None:
+        raise HTTPException(status_code=404, detail="work not found")
+    return Response(content=work, media_type=db.format_mimetypes[file_format])
 
 
 class BulkRequest(BaseModel):
