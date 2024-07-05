@@ -1,11 +1,9 @@
 import random
 import time
-
 from typing_extensions import TypedDict
 from pydantic import BaseModel
 import os.path
 import psycopg2
-import storage_managers
 
 valid_formats = ["pdf", "epub", "azw3", "mobi", "html"]
 
@@ -15,8 +13,6 @@ conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         password=os.environ["POSTGRESQL_PASSWORD"],
                         port=os.environ["POSTGRESQL_PORT"])
 conn.autocommit = True
-
-storage = storage_managers.S3Manager()
 
 # Check if db has been initialized. If it hasn't been, initialize it.
 queue_table_cursor = conn.cursor()
@@ -310,7 +306,7 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
 
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT work_id, updated, submitted_by_name, format
+        SELECT work_id, updated, submitted_by_id, format
         FROM queue
         WHERE job_id = %(job_id)s
     """, {"job_id": job_id})
