@@ -85,7 +85,7 @@ class JobOrder(BaseModel):
     updated: int
 
 
-def get_job(client_name: str, client_id: str) -> None | JobOrder:
+def get_job(client_name: str) -> None | JobOrder:
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -107,7 +107,7 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
         return None
 
     job_id, work_id, work_format, updated = queue_query
-    dispatch_id, report_code = dispatch_job(job_id, client_name, client_id)
+    dispatch_id, report_code = dispatch_job(job_id, client_name)
     job_order = JobOrder(dispatch_id=dispatch_id,
                          job_id=job_id,
                          work_id=work_id,
@@ -117,15 +117,15 @@ def get_job(client_name: str, client_id: str) -> None | JobOrder:
     return job_order
 
 
-def dispatch_job(job_id: int, client_name: str, client_id: str) -> tuple[int, int]:
+def dispatch_job(job_id: int, client_name: str) -> tuple[int, int]:
     cursor = conn.cursor()
     report_code = random.randrange(-32768, 32767)
     cursor.execute("""
                     INSERT INTO dispatches
-                    (dispatched_time, dispatched_to_name, dispatched_to_id, job_id, report_code)
-                    VALUES (NOW(), %(client_name)s, %(client_id)s, %(job_id)s, %(report_code)s)
+                    (dispatched_time, dispatched_to_name, job_id, report_code)
+                    VALUES (NOW(), %(client_name)s, %(job_id)s, %(report_code)s)
                     RETURNING dispatch_id;
-                   """, {"client_name": client_name, "client_id": client_id, "job_id": job_id,
+                   """, {"client_name": client_name, "job_id": job_id,
                          "report_code": report_code})
     dispatch_id = cursor.fetchone()[0]
     cursor.close()

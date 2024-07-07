@@ -51,7 +51,7 @@ class JobRequest(BaseModel):
 
 @app.post("/request_job", dependencies=[Depends(admin_token)])
 async def request_job(job_request: JobRequest):
-    job = db.get_job(job_request.client_name, job_request.client_name)
+    job = db.get_job(job_request.client_name)
 
     if job is None:
         return {"status": "queue empty"}
