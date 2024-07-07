@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch, get_work_storage_by_timestamp,
-                get_storage_entry)
+                get_storage_entry, WorkNotFound)
 import uuid
 import bsdiff4
 import zlib
@@ -46,6 +46,8 @@ class StorageManager(ABC):
 
     def get_archived_work(self, work_id: int, timestamp: int, file_format: str) -> bytes:
         work_entry = get_work_storage_by_timestamp(work_id, timestamp, file_format)
+        if work_entry is None:
+            raise WorkNotFound("The archived work doesn't seem to exist.")
         storage_patches = []  # list of storage entries to be fetched for patching
         for _ in range(100):  # limiting iterations just in case
             storage_patches.insert(0, work_entry)

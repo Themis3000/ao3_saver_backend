@@ -44,6 +44,10 @@ class InvalidFormat(Exception):
     pass
 
 
+class WorkNotFound(Exception):
+    pass
+
+
 def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: str):
     if work_format not in valid_formats:
         raise InvalidFormat(f"{work_format} is not a valid format")
@@ -377,3 +381,49 @@ def get_bulk_works(works: List[WorkBulkEntry]):
             yield file_name, datetime.datetime.now(), S_IFREG | 0o600, ZIP_64, work_bytes_gen()
 
     return stream_zip(work_files())
+
+
+class Work(BaseModel):
+    storage_id: int
+    work_id: int
+    format: str
+    uploaded_time: int
+    updated_time: int
+    location: str
+    patch_of: int | None
+    retrieved_from: str
+
+    @property
+    def archival_url(self) -> str:
+        return f"/works/dl_historical/{self.work_id}/{self.uploaded_time}?file_format={self.format}"
+
+    @property
+    def newest_url(self) -> str:
+        return f"/works/dl/{self.work_id}?file_format={self.format}"
+
+    @property
+    def formatted_upload(self) -> str:
+        return datetime.datetime.fromtimestamp(self.uploaded_time).strftime('%c')
+
+
+def get_work_versions(work_id: int) -> List[Work]:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT storage_id, work_id, format, uploaded_time, updated_time, location, patch_of, retrieved_from
+        FROM works_storage
+        WHERE work_id = %(work_id)s
+        ORDER BY uploaded_time DESC;
+    """, {"work_id": work_id})
+    results = cursor.fetchall()
+    cursor.close()
+    works = [Work(
+        storage_id=result[0],
+        work_id=result[1],
+        format=result[2],
+        uploaded_time=result[3],
+        updated_time=result[4],
+        location=result[5],
+        patch_of=result[6],
+        retrieved_from=result[7]
+    ) for result in results]
+    return works

@@ -102,19 +102,15 @@ async def complete_job(work_id: Annotated[int, Form()],
 @app.get("/works/{work_id}")
 async def get_work(work_id: int, request: Request):
     work_history = db.get_work_versions(work_id)
-    most_recent_url = f"/works/dl/{work_id}"
     if len(work_history) == 0:
-        return RedirectResponse(url=most_recent_url)
-
-    archives = []
-    for work_timestamp in work_history:
-        url = f"/works/dl_historical/{work_id}/{work_timestamp}"
-        date = datetime.datetime.fromtimestamp(work_timestamp).strftime('%c')
-        archives.append({"url": url, "date": date})
+        raise HTTPException(status_code=404, detail="work not found")
+    newest_work = work_history.pop(0)
+    if len(work_history) == 0:
+        return RedirectResponse(url=newest_work.newest_url)
 
     return templates.TemplateResponse(
-        "work_dl.html",
-        context={"most_recent_url": most_recent_url, "archives": archives, "request": request},
+        "work_dl.jinja",
+        context={"newest_work": newest_work, "work_history": work_history, "request": request},
     )
 
 
@@ -128,8 +124,9 @@ async def dl_work(work_id: int, file_format: str = "pdf"):
 
 @app.get("/works/dl_historical/{work_id}/{timestamp}")
 async def dl_historical_work(work_id: int, timestamp: int, file_format: str = "pdf"):
-    work = storage.get_archived_work(work_id, timestamp, file_format)
-    if work is None:
+    try:
+        work = storage.get_archived_work(work_id, timestamp, file_format)
+    except db.WorkNotFound:
         raise HTTPException(status_code=404, detail="work not found")
     return Response(content=work, media_type=db.format_mimetypes[file_format])
 
