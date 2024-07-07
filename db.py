@@ -341,25 +341,6 @@ def sideload_work(work_id, work, updated_time, submitted_by, file_format):
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
 
 
-def update_work_entry(work_id, img_enabled: bool = None, title: str = None):
-    cursor = conn.cursor()
-    cursor.execute("""
-        do $$
-        BEGIN
-        
-        IF (SELECT EXISTS(SELECT 1 FROM works WHERE work_id=%(work_id)s)) then
-            UPDATE works
-            SET img_enabled = %(img_enabled)s, title = %(title)s
-            WHERE work_id=%(work_id)s;
-        else
-            INSERT INTO works (work_id, title, img_enabled)
-            VALUES (%(work_id)s, %(title)s, %(img_enabled)s);
-        end if;
-        end $$
-    """, {"work_id": work_id, "img_enabled": img_enabled, "title": title})
-    cursor.close()
-
-
 re_clean_filename = re.compile(r"[/\\?%*:|\"<>\x7F\x00-\x1F]")
 
 
