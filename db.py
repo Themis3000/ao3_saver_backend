@@ -92,8 +92,8 @@ def get_job(client_name: str) -> None | JobOrder:
     cursor.execute("""
     SELECT job_id, work_id, format, updated
     FROM queue
-    WHERE NOT EXISTS (
-        SELECT *
+    WHERE complete = false AND NOT EXISTS (
+        SELECT
         FROM dispatches
         WHERE dispatches.job_id = queue.job_id
         AND dispatches.dispatched_time > (NOW() - INTERVAL '00:03:00')
@@ -294,13 +294,13 @@ def get_storage_entry(storage_id: int) -> StorageData | None:
     return parse_storage_query(result)
 
 
-def remove_from_queue(job_id: int):
+def mark_queue_completed(job_id: int, success: bool):
     cursor = conn.cursor()
     cursor.execute("""
-        DELETE
-        FROM queue
+        UPDATE queue
+        SET complete = true, success = %(success)s
         WHERE job_id = %(job_id)s
-    """, {"job_id": job_id})
+    """, {"job_id": job_id, "success": success})
     cursor.close()
 
 
@@ -335,7 +335,7 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
 
     from file_storage import storage
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
-    remove_from_queue(job_id)
+    mark_queue_completed(job_id)
 
 
 def sideload_work(work_id, work, updated_time, submitted_by, file_format):

@@ -4,7 +4,9 @@ CREATE TABLE "queue"(
     "submitted_time" TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL,
     "updated" BIGINT NOT NULL,
     "submitted_by_id" VARCHAR(255) NOT NULL,
-    "format" VARCHAR(255) NOT NULL
+    "format" VARCHAR(255) NOT NULL,
+    "complete" boolean default false not null,
+    "success" boolean default false not null
 );
 ALTER TABLE
     "queue" ADD PRIMARY KEY("job_id");
