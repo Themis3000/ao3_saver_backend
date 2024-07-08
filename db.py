@@ -83,6 +83,7 @@ class JobOrder(BaseModel):
     work_format: str
     report_code: int
     updated: int
+    get_img: bool = True
 
 
 def get_job(client_name: str) -> None | JobOrder:
@@ -113,7 +114,8 @@ def get_job(client_name: str) -> None | JobOrder:
                          work_id=work_id,
                          work_format=work_format,
                          report_code=report_code,
-                         updated=updated)
+                         updated=updated,
+                         get_img=True)
     return job_order
 
 
