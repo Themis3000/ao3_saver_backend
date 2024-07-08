@@ -37,7 +37,8 @@ CREATE TABLE "dispatches"(
     "job_id" INT NOT NULL,
     "fail_reported" BOOLEAN NOT NULL DEFAULT FALSE,
     "fail_status" SMALLINT NULL,
-    "report_code" SMALLINT NOT NULL
+    "report_code" SMALLINT NOT NULL,
+    "complete" boolean default FALSE not NULL
 );
 ALTER TABLE
     "dispatches" ADD PRIMARY KEY("dispatch_id");

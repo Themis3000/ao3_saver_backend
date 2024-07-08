@@ -172,7 +172,7 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
 
     cursor.execute("""
         UPDATE dispatches
-        SET fail_reported = true, fail_status = %(fail_status)s
+        SET fail_reported = true, fail_status = %(fail_status)s, complete = true
         WHERE dispatch_id = %(dispatch_id)s;
     """, {"fail_status": fail_code, "dispatch_id": dispatch_id, "job_id": job_id})
 
@@ -326,6 +326,13 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
 
     from file_storage import storage
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE dispatches
+        SET complete = true
+        WHERE job_id = %(job_id)s
+    """, {"job_id": job_id})
+    cursor.close()
     mark_queue_completed(job_id, True)
 
 
