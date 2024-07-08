@@ -10,6 +10,8 @@ CREATE TABLE "queue"(
 );
 ALTER TABLE
     "queue" ADD PRIMARY KEY("job_id");
+create index queue_complete_index
+    on queue (complete);
 CREATE INDEX "queue_work_id_index" ON
     "queue"("work_id");
 CREATE TABLE "storage"(
