@@ -57,11 +57,11 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
     cursor.execute("""
         SELECT EXISTS(
             SELECT FROM works_storage
-            WHERE work_id=%(work_id)s AND format=%(work_format)s AND updated_time>%(updated_time)s
+            WHERE work_id=%(work_id)s AND format=%(work_format)s AND updated_time>=%(updated_time)s
         )
         OR EXISTS(
             SELECT FROM queue
-            WHERE work_id=%(work_id)s AND format=%(work_format)s
+            WHERE work_id=%(work_id)s AND format=%(work_format)s AND complete=false
         )
         """, {"work_id": work_id, "work_format": work_format, "updated_time": updated_time})
     queue_item_exists = cursor.fetchone()[0]
