@@ -134,21 +134,6 @@ def dispatch_job(job_id: int, client_name: str) -> tuple[int, int]:
     return dispatch_id, report_code
 
 
-# TODO:Themis Remove this if there's still no use by the time everything is finished.
-def clear_queue_by_attempts(attempts: int):
-    cursor = conn.cursor()
-    cursor.execute("""
-        DELETE FROM queue
-        WHERE job_id IN (
-            SELECT job_id
-            FROM dispatches
-            GROUP BY job_id
-            HAVING COUNT(*) >= %s
-        )
-    """, (attempts,))
-    cursor.close()
-
-
 class NotAuthorized(Exception):
     """
     This is used for when an update is not authorized based on the provided values.
@@ -165,7 +150,6 @@ class AlreadyReported(Exception):
 
 
 def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
-    # TODO check use query to remove work if it's also had too many failed attempts
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -190,18 +174,25 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
         UPDATE dispatches
         SET fail_reported = true, fail_status = %(fail_status)s
         WHERE dispatch_id = %(dispatch_id)s;
-        
-        DELETE FROM queue
-        WHERE job_id = %(job_id)s
-            AND (
-                SELECT COUNT(*)
-                FROM dispatches
-                WHERE job_id = %(job_id)s AND fail_reported = true
-                LIMIT 3
-            ) >= 3;
     """, {"fail_status": fail_code, "dispatch_id": dispatch_id, "job_id": job_id})
 
+    fail_count = get_queue_fail_count(job_id)
+    if fail_count >= 3:
+        mark_queue_completed(job_id, False)
+
     cursor.close()
+
+
+def get_queue_fail_count(job_id: int) -> int:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM dispatches
+        WHERE job_id = %s AND fail_reported = true;
+    """, (job_id,))
+    fail_count = cursor.fetchone()[0]
+    cursor.close()
+    return fail_count
 
 
 class WorkBulkEntry(TypedDict):
@@ -335,7 +326,7 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
 
     from file_storage import storage
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
-    mark_queue_completed(job_id)
+    mark_queue_completed(job_id, True)
 
 
 def sideload_work(work_id, work, updated_time, submitted_by, file_format):
