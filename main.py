@@ -84,7 +84,15 @@ async def complete_job(dispatch_id: Annotated[int, Form()],
                        report_code: Annotated[int, Form()],
                        work: Annotated[UploadFile, File()]):
     """For submitting a completed job"""
-    db.submit_dispatch(dispatch_id, report_code, await work.read())
+    try:
+        db.submit_dispatch(dispatch_id, report_code, await work.read())
+    except db.NotAuthorized:
+        raise HTTPException(status_code=403, detail="not authorized to submit job")
+    except db.AlreadyReported:
+        raise HTTPException(status_code=409, detail="this job has already been reported on")
+    except db.JobNotFound:
+        raise HTTPException(status_code=404, detail="the dispatch id is invalid")
+    return {"status": "successfully submitted"}
 
 
 @app.post("/submit_work", dependencies=[Depends(admin_token)])
