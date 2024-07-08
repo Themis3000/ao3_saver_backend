@@ -63,7 +63,7 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
             SELECT FROM queue
             WHERE work_id=%(work_id)s AND format=%(work_format)s
         )
-        """, {"work_id": work_id, "work_format": work_format, updated_time: updated_time})
+        """, {"work_id": work_id, "work_format": work_format, "updated_time": updated_time})
     queue_item_exists = cursor.fetchone()[0]
     if queue_item_exists:
         return
@@ -72,7 +72,7 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
         INSERT INTO queue
         (work_id, submitted_time, updated, submitted_by_id, format)
         VALUES (%(work_id)s, NOW(), %(updated)s, %(submitted_by_id)s, %(format)s);
-    """, {"work_id": work_id, "updated": updated_time, "submitted_by_id": reporter_id})
+    """, {"work_id": work_id, "updated": updated_time, "submitted_by_id": reporter_id, "format": work_format})
     cursor.close()
 
 
