@@ -305,7 +305,7 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
     result = cursor.fetchone()
     cursor.close()
 
-    true_report_code, job_id = result[0]
+    true_report_code, job_id = result
 
     if true_report_code is None:
         raise JobNotFound("Invalid job_id provided")
@@ -322,7 +322,7 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
     result = cursor.fetchone()
     cursor.close()
 
-    work_id, updated_time, submitted_by, file_format = result[0]
+    work_id, updated_time, submitted_by, file_format = result
 
     from file_storage import storage
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
