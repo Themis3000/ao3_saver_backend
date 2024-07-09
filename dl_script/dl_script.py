@@ -1,8 +1,10 @@
+import time
 from typing import List
-
 import requests
 import os
 from bs4 import BeautifulSoup
+
+TASK_INTERVAL = 15
 
 admin_token_str = os.environ.get("ADMIN_TOKEN", None)
 auth_header = {"token": admin_token_str}
@@ -103,4 +105,11 @@ def do_task():
     print("Work report success!")
 
 
-do_task()
+last_task_time = time.time()
+while True:
+    time_since_last_task = time.time() - last_task_time
+    if time_since_last_task >= TASK_INTERVAL:
+        do_task()
+        last_task_time = time.time()
+    else:
+        time.sleep(TASK_INTERVAL - time_since_last_task)
