@@ -4,7 +4,7 @@ import random
 import re
 import time
 from stat import S_IFREG
-from typing import List
+from typing import List, Dict
 from stream_zip import stream_zip, ZIP_64
 from typing_extensions import TypedDict
 from pydantic import BaseModel
@@ -91,14 +91,40 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
     cursor.close()
 
 
+class ObjectCacheInfo(BaseModel):
+    etag: str | None
+    time: datetime.datetime
+    object_id: int
+    url: str
+    sha1: str
+
+
 class JobOrder(BaseModel):
     dispatch_id: int
     job_id: int
-    work_id: str
+    work_id: int
     work_format: str
     report_code: int
     updated: int
     get_img: bool = True
+    cache_infos: Dict[str, ObjectCacheInfo] = {}
+
+    def model_post_init(self, __context):
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                DISTINCT ON (request_url) request_url,
+                etag, creation_time, object_id, sha1
+            FROM object_index
+            WHERE associated_work = %s
+            ORDER BY request_url, creation_time DESC
+            LIMIT 200;
+        """, (self.work_id,))
+        result = cursor.fetchall()
+        cursor.close()
+        self.cache_infos = {
+            row[0]: ObjectCacheInfo(url=row[0], etag=row[1], time=row[2], object_id=row[3], sha1=row[4])
+            for row in result}
 
 
 def get_job(client_name: str) -> None | JobOrder:
@@ -321,8 +347,13 @@ class SupportingObject(BaseModel):
         return hashlib.sha1(self.data).hexdigest()
 
 
+class SupportingCachedObject(BaseModel):
+    url: str
+    object_id: int
+
+
 def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
-                    supporting_objects: List[SupportingObject]) -> None:
+                    supporting_objects: List[SupportingObject | SupportingCachedObject]) -> None:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT report_code, job_id
@@ -363,7 +394,8 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
     mark_queue_completed(job_id, True)
 
 
-def sideload_work(work_id, work, updated_time, submitted_by, file_format, supporting_objects: List[SupportingObject]):
+def sideload_work(work_id, work, updated_time, submitted_by, file_format,
+                  supporting_objects: List[SupportingObject | SupportingCachedObject]):
     from file_storage import storage
     storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
 

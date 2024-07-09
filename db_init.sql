@@ -77,9 +77,6 @@ create table object_index
 create index object_index_associated_work_index
     on object_index (associated_work);
 
-create index object_index_request_url_index
-    on object_index (request_url);
-
 create index object_index_sha1_index
     on object_index (sha1);
 

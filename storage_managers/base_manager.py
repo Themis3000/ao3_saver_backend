@@ -3,7 +3,7 @@ from typing import List
 
 from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch, get_work_storage_by_timestamp,
                 get_storage_entry, WorkNotFound, SupportingObject, object_exists, create_object_entry,
-                create_object_index_entry, find_object_index_entry)
+                create_object_index_entry, find_object_index_entry, SupportingCachedObject)
 import uuid
 import bsdiff4
 import zlib
@@ -30,7 +30,7 @@ class StorageManager(ABC):
         return zlib.decompress(self.get_file(key))
 
     def store_work(self, work_id: int, work: bytes, uploaded_time: int, updated_time: int, retrieved_from: str,
-                   file_format: str, supporting_objects: List[SupportingObject]) -> None:
+                   file_format: str, supporting_objects: List[SupportingObject | SupportingCachedObject]) -> None:
         if supporting_objects:
             if file_format != 'html':
                 raise NotImplemented("Cannot handle supporting objects with non-html files.")
@@ -73,7 +73,8 @@ class StorageManager(ABC):
 
         return master_file
 
-    def rewrite_html_sources(self, work: bytes, supporting_objects: List[SupportingObject], work_id: int) -> bytes:
+    def rewrite_html_sources(self, work: bytes, supporting_objects: List[SupportingObject | SupportingCachedObject],
+                             work_id: int) -> bytes:
         work_text = UnicodeDammit(work, is_html=True).unicode_markup
 
         # Validate that all supporting object urls are actually present in work
@@ -83,6 +84,10 @@ class StorageManager(ABC):
 
         # Upload supporting objects, if not already uploaded.
         for supporting_object in supporting_objects:
+            if isinstance(supporting_object, SupportingCachedObject):
+                work_text = work_text.replace(supporting_object.url, f"/objects/{supporting_object.object_id}")
+                continue
+
             sha1 = supporting_object.data_sha1()
             object_index_id: int
             if not object_exists(sha1):

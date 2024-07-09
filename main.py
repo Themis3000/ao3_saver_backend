@@ -80,12 +80,21 @@ async def fail_job(job: JobFailure):
     return {"status": "successfully failed!"}
 
 
-async def extract_supporting_objects(form_data) -> List[db.SupportingObject]:
+async def extract_supporting_objects(form_data) -> List[db.SupportingObject | db.SupportingCachedObject]:
     supporting_data = []
     for i in itertools.count():
         file: UploadFile = form_data.get(f"supporting_objects_{i}")
+
         if file is None:
-            break
+            cached_object_id = form_data.get(f"cached_{i}_object_id")
+            cached_url = form_data.get(f"cached_{i}_url")
+
+            if not cached_object_id or not cached_url:
+                break
+
+            supporting_data.append(db.SupportingCachedObject(url=cached_url, object_id=cached_object_id))
+            continue
+
         url = form_data.get(f"supporting_objects_{i}_url")
         etag = form_data.get(f"supporting_objects_{i}_etag")
         if url is None or etag is None:

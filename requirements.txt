@@ -11,7 +11,7 @@ prometheus_fastapi_instrumentator
 psycopg2~=2.9.9
 python-multipart
 botocore~=1.21.41
-pydantic~=1.10.7
+pydantic~=2.8.2
 typing_extensions~=4.10.0
 beautifulsoup4~=4.12.3
 chardet

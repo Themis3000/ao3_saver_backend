@@ -60,11 +60,25 @@ def do_task():
         soup = BeautifulSoup(data, 'html.parser')
         img_urls: List[str] = [img['src'] for img in soup.find_all('img', src=True)]
         for i, url in enumerate(img_urls):
+            cache_info = job_info["cache_infos"].get(url, None)
+            headers = {}
+            if cache_info:
+                print(f"found cache info for {url}")
+                headers["If-None-Match"] = cache_info["etag"]
+
             print(f"fetching image {url}")
-            img_response = requests.get(url, proxies=proxies)
+            img_response = requests.get(url, headers=headers, proxies=proxies)
+
+            if img_response.status_code == 304:
+                print("Image hit cache!")
+                images_meta[f"cached_{i}_object_id"] = cache_info["object_id"]
+                images_meta[f"cached_{i}_url"] = cache_info["url"]
+                continue
+
             if not img_response.ok:
                 print("couldn't fetch image")
                 continue
+
             images.append((f"supporting_objects_{i}", (
                 url.split("/")[-1],
                 img_response.content,
