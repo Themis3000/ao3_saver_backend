@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import random
 import re
 import time
@@ -96,7 +97,7 @@ def get_job(client_name: str) -> None | JobOrder:
         SELECT
         FROM dispatches
         WHERE dispatches.job_id = queue.job_id
-        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:03:00')
+        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:00:05')
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
@@ -247,7 +248,7 @@ def parse_storage_query(result) -> StorageData | None:
 def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | None:
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT *
+        SELECT storage_id, work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format
         FROM works_storage
         WHERE work_id = %(work_id)s AND format = %(format)s AND patch_of IS NULL
         LIMIT 1;
@@ -295,7 +296,19 @@ def mark_queue_completed(job_id: int, success: bool):
     cursor.close()
 
 
-def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
+class SupportingObject(BaseModel):
+    url: str
+    etag: str
+    mimetype: str
+    file_name: str
+    data: bytes
+
+    def data_sha1(self) -> str:
+        return hashlib.sha1(self.data).hexdigest()
+
+
+def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
+                    supporting_objects: List[SupportingObject]) -> None:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT report_code, job_id
@@ -325,7 +338,7 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
     work_id, updated_time, submitted_by, file_format = result
 
     from file_storage import storage
-    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
+    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE dispatches
@@ -336,9 +349,9 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> None:
     mark_queue_completed(job_id, True)
 
 
-def sideload_work(work_id, work, updated_time, submitted_by, file_format):
+def sideload_work(work_id, work, updated_time, submitted_by, file_format, supporting_objects: List[SupportingObject]):
     from file_storage import storage
-    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
+    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
 
 
 re_clean_filename = re.compile(r"[/\\?%*:|\"<>\x7F\x00-\x1F]")
@@ -408,3 +421,70 @@ def get_work_versions(work_id: int) -> List[Work]:
         retrieved_from=result[7]
     ) for result in results]
     return works
+
+
+def object_exists(sha1: str):
+    cursor = conn.cursor()
+    cursor.execute("SELECT EXISTS(SELECT FROM object_store WHERE sha1 = %s)", (sha1,))
+    result = cursor.fetchone()
+    cursor.close()
+    return result[0]
+
+
+def create_object_entry(sha1: str, location: str):
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO object_store (sha1, location) VALUES (%(sha1)s, %(location)s);
+    """, {"sha1": sha1, "location": location})
+    cursor.close()
+
+
+def find_object_index_entry(sha1: str, request_url: str, etag: str | None, associated_work: int) -> int | None:
+    """For checking to see if an entry already sufficiently describes what is to be inserted"""
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT object_id
+        FROM object_index
+        WHERE request_url = %(request_url)s AND etag=%(etag)s AND sha1=%(sha1)s AND associated_work=%(associated_work)s
+    """, {"sha1": sha1, "request_url": request_url, "etag": etag, "associated_work": associated_work})
+    result = cursor.fetchone()
+    cursor.close()
+    if result is None:
+        return None
+    return result[0]
+
+
+def create_object_index_entry(sha1: str, request_url: str, etag: str | None, associated_work: int, mimetype: str) -> int:
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO object_index (request_url, sha1, etag, mimetype, associated_work)
+        VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s, %(associated_work)s)
+        RETURNING object_id;
+    """, {"sha1": sha1, "request_url": request_url, "etag": etag, "associated_work": associated_work, "mimetype": mimetype})
+    result = cursor.fetchone()
+    cursor.close()
+    return result[0]
+
+
+class SupportingObjectData(BaseModel):
+    mimetype: str
+    location: str
+    data: bytes
+
+
+def get_supporting_object_file(obj_id: int) -> SupportingObjectData | None:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT oi.mimetype, os.location
+        FROM object_index oi
+        INNER JOIN object_store os on os.sha1 = oi.sha1
+        WHERE oi.object_id = %s
+        LIMIT 1
+    """, (obj_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    if result is None:
+        return None
+    from file_storage import storage
+    data = storage.get_file(result[1])
+    return SupportingObjectData(mimetype=result[0], location=result[1], data=data)

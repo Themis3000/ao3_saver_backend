@@ -1,3 +1,4 @@
+import itertools
 import uuid
 import db
 from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile, Depends
@@ -76,13 +77,34 @@ async def fail_job(job: JobFailure):
     return {"status": "successfully failed!"}
 
 
+async def extract_supporting_objects(form_data) -> List[db.SupportingObject]:
+    supporting_data = []
+    for i in itertools.count():
+        file: UploadFile = form_data.get(f"supporting_objects_{i}")
+        if file is None:
+            break
+        url = form_data.get(f"supporting_objects_{i}_url")
+        etag = form_data.get(f"supporting_objects_{i}_etag")
+        if url is None or etag is None:
+            raise HTTPException(status_code=400, detail="missing url or etag data")
+        mimetype = file.headers.get("Content-Type", "")
+        file_name = file.filename
+        supporting_object = db.SupportingObject(url=url, etag=etag, mimetype=mimetype, file_name=file_name, data=await file.read())
+        supporting_data.append(supporting_object)
+    return supporting_data
+
+
 @app.post("/submit_job", dependencies=[Depends(admin_token)])
 async def complete_job(dispatch_id: Annotated[int, Form()],
                        report_code: Annotated[int, Form()],
-                       work: Annotated[UploadFile, File()]):
+                       work: Annotated[UploadFile, File()],
+                       request: Request):
     """For submitting a completed job"""
+    form_data = await request.form()
+    supporting_objects = await extract_supporting_objects(form_data)
+
     try:
-        db.submit_dispatch(dispatch_id, report_code, await work.read())
+        db.submit_dispatch(dispatch_id, report_code, await work.read(), supporting_objects)
     except db.NotAuthorized:
         raise HTTPException(status_code=403, detail="not authorized to submit job")
     except db.AlreadyReported:
@@ -93,13 +115,17 @@ async def complete_job(dispatch_id: Annotated[int, Form()],
 
 
 @app.post("/submit_work", dependencies=[Depends(admin_token)])
-async def complete_job(work_id: Annotated[int, Form()],
-                       work: Annotated[UploadFile, File()],
-                       file_format: Annotated[str, Form()],
-                       updated_time: Annotated[int, Form()],
-                       requester_id: Annotated[str, Form()]):
+async def submit_work(work_id: Annotated[int, Form()],
+                      work: Annotated[UploadFile, File()],
+                      file_format: Annotated[str, Form()],
+                      updated_time: Annotated[int, Form()],
+                      requester_id: Annotated[str, Form()],
+                      request: Request):
     """For submitting a work that was never part of an assigned job"""
-    db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format)
+    form_data = await request.form()
+    supporting_objects = await extract_supporting_objects(form_data)
+
+    db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format, supporting_objects)
     return {"status": "successfully submitted"}
 
 
@@ -133,6 +159,18 @@ async def dl_historical_work(work_id: int, timestamp: int, file_format: str = "h
     except db.WorkNotFound:
         raise HTTPException(status_code=404, detail="work not found")
     return Response(content=work, media_type=db.format_mimetypes[file_format])
+
+
+@app.get("/objects/{obj_id}")
+async def get_object(obj_id: int):
+    supporting_object = db.get_supporting_object_file(obj_id)
+
+    if supporting_object is None:
+        raise HTTPException(status_code=404, detail="not found.")
+
+    return Response(content=supporting_object.data,
+                    media_type=supporting_object.mimetype,
+                    headers={"Cache-Control": "max-age=31536000, immutable"})
 
 
 class BulkRequest(BaseModel):

@@ -1,5 +1,8 @@
+from typing import List
+
 import requests
 import os
+from bs4 import BeautifulSoup
 
 admin_token_str = os.environ.get("ADMIN_TOKEN", None)
 auth_header = {"token": admin_token_str}
@@ -40,7 +43,7 @@ def do_task():
         fail_response = requests.post(failed_endpoint,
                                       headers=auth_header,
                                       json={
-                                          "job_id": job_info["job_id"],
+                                          "dispatch_id": job_info["job_id"],
                                           "report_code": job_info["report_code"],
                                           "fail_status": dl_response.status_code})
         if not fail_response.ok:
@@ -49,12 +52,35 @@ def do_task():
         print("Fail report success")
         return
     data = dl_response.content
-    print(f"successfully downloaded {job_info['work_id']} updated at {job_info['updated']}, reporting to server...")
 
+    # fetch any images, if this is a html page.
+    images = []
+    images_meta = {}
+    if job_info["work_format"] == "html":
+        soup = BeautifulSoup(data, 'html.parser')
+        img_urls: List[str] = [img['src'] for img in soup.find_all('img', src=True)]
+        for i, url in enumerate(img_urls):
+            print(f"fetching image {url}")
+            img_response = requests.get(url, proxies=proxies)
+            if not img_response.ok:
+                print("couldn't fetch image")
+                continue
+            images.append((f"supporting_objects_{i}", (
+                url.split("/")[-1],
+                img_response.content,
+                img_response.headers.get("Content-Type", "")
+            )))
+            images_meta[f"supporting_objects_{i}_url"] = url
+            images_meta[f"supporting_objects_{i}_etag"] = img_response.headers.get("ETag", "")
+            print("fetched image!")
+
+    print(f"successfully downloaded {job_info['work_id']} updated at {job_info['updated']}, reporting to server...")
     submit_res = requests.post(submit_endpoint,
                                headers=auth_header,
-                               files={"work": data},
-                               data={"dispatch_id": job_info["dispatch_id"], "report_code": job_info["report_code"]})
+                               files=[("work", ("work", data, "")), *images],
+                               data={
+                                   "dispatch_id": job_info["dispatch_id"],
+                                   "report_code": job_info["report_code"], **images_meta})
 
     if not submit_res.ok:
         print(f"Work report has failed")

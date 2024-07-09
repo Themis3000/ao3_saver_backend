@@ -1,9 +1,13 @@
 from abc import ABC, abstractmethod
+from typing import List
+
 from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch, get_work_storage_by_timestamp,
-                get_storage_entry, WorkNotFound)
+                get_storage_entry, WorkNotFound, SupportingObject, object_exists, create_object_entry,
+                create_object_index_entry, find_object_index_entry)
 import uuid
 import bsdiff4
 import zlib
+from bs4.dammit import UnicodeDammit
 
 
 class StorageManager(ABC):
@@ -26,7 +30,12 @@ class StorageManager(ABC):
         return zlib.decompress(self.get_file(key))
 
     def store_work(self, work_id: int, work: bytes, uploaded_time: int, updated_time: int, retrieved_from: str,
-                   file_format: str) -> None:
+                   file_format: str, supporting_objects: List[SupportingObject]) -> None:
+        if supporting_objects:
+            if file_format != 'html':
+                raise NotImplemented("Cannot handle supporting objects with non-html files.")
+            work = self.rewrite_html_sources(work, supporting_objects, work_id)
+
         storage_key = f"{work_id}_{uuid.uuid4()}"
         self.store_file_compressed(storage_key, work)
         previous_head_work = get_head_work_storage_data(work_id, file_format)
@@ -63,6 +72,33 @@ class StorageManager(ABC):
             master_file = bsdiff4.patch(master_file, diff_bytes)
 
         return master_file
+
+    def rewrite_html_sources(self, work: bytes, supporting_objects: List[SupportingObject], work_id: int) -> bytes:
+        work_text = UnicodeDammit(work, is_html=True).unicode_markup
+
+        # Validate that all supporting object urls are actually present in work
+        for supporting_object in supporting_objects:
+            if work_text.find(supporting_object.url) == -1:
+                raise ValueError(f"Supporting object URL '{supporting_object.url}' not found in work.")
+
+        # Upload supporting objects, if not already uploaded.
+        for supporting_object in supporting_objects:
+            sha1 = supporting_object.data_sha1()
+            object_index_id: int
+            if not object_exists(sha1):
+                file_key = f"obj_{sha1}"
+                self.store_file(file_key, supporting_object.data)
+                create_object_entry(sha1, file_key)
+                object_index_id = create_object_index_entry(sha1, supporting_object.url, supporting_object.etag,
+                                                            work_id, supporting_object.mimetype)
+            else:
+                object_index_id = find_object_index_entry(sha1, supporting_object.url, supporting_object.etag, work_id)
+                if object_index_id is None:
+                    object_index_id = create_object_index_entry(sha1, supporting_object.url, supporting_object.etag,
+                                                                work_id, supporting_object.mimetype)
+            work_text = work_text.replace(supporting_object.url, f"/objects/{object_index_id}")
+
+        return work_text.encode('utf-8')
 
 
 class TooManyIterations(Exception):

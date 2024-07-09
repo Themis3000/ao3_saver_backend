@@ -14,7 +14,7 @@ create index queue_complete_index
     on queue (complete);
 CREATE INDEX "queue_work_id_index" ON
     "queue"("work_id");
-CREATE TABLE "storage"(
+CREATE TABLE "works_storage"(
     "storage_id" SERIAL NOT NULL,
     "work_id" INTEGER NOT NULL,
     "uploaded_time" BIGINT NOT NULL,
@@ -50,3 +50,39 @@ ALTER TABLE
     works_storage ADD CONSTRAINT "storage_patch_of_foreign" FOREIGN KEY("patch_of") REFERENCES works_storage("storage_id");
 ALTER TABLE
     "dispatches" ADD CONSTRAINT "dispatches_job_id_foreign" FOREIGN KEY("job_id") REFERENCES "queue"("job_id");
+
+create table object_store
+(
+    sha1        varchar(40)   not null,
+    location    varchar(255)  not null
+);
+
+alter table object_store
+    add constraint object_store_pk
+        primary key (sha1);
+
+create table object_index
+(
+    object_id       serial                  not null
+        constraint object_index_pk
+            primary key,
+    request_url     varchar(2000)           not null,
+    sha1            char(40)                not null,
+    etag            varchar(255),
+    mimetype        varchar(255)            not null,
+    associated_work integer                 not null,
+    creation_time   TIMESTAMP default NOW() not null
+);
+
+create index object_index_associated_work_index
+    on object_index (associated_work);
+
+create index object_index_request_url_index
+    on object_index (request_url);
+
+create index object_index_sha1_index
+    on object_index (sha1);
+
+alter table object_index
+    add constraint object_index_object_store_sha1_fk
+        foreign key (sha1) references object_store;
