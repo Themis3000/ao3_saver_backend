@@ -63,32 +63,43 @@ class WorkNotFound(Exception):
     pass
 
 
-def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: str):
+def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: str) -> int | None:
     if work_format not in valid_formats:
         raise InvalidFormat(f"{work_format} is not a valid format")
 
     cursor = conn.cursor()
 
+    # Check if work version is already downloaded. If so, exit.
     cursor.execute("""
         SELECT EXISTS(
             SELECT FROM works_storage
             WHERE work_id=%(work_id)s AND format=%(work_format)s AND updated_time>=%(updated_time)s
         )
-        OR EXISTS(
-            SELECT FROM queue
-            WHERE work_id=%(work_id)s AND format=%(work_format)s AND complete=false
-        )
-        """, {"work_id": work_id, "work_format": work_format, "updated_time": updated_time})
-    queue_item_exists = cursor.fetchone()[0]
-    if queue_item_exists:
-        return
+    """, {"work_id": work_id, "work_format": work_format, "updated_time": updated_time})
+    work_exists = cursor.fetchone()[0]
+    if work_exists:
+        return None
 
+    # Check if work is already in queue, if so return id
+    cursor.execute("""
+        SELECT job_id
+        FROM queue
+        WHERE work_id=%(work_id)s AND format=%(work_format)s AND complete=false
+    """, {"work_id": work_id, "work_format": work_format, "updated_time": updated_time})
+    job_id = cursor.fetchone()
+    if job_id:
+        return job_id[0]
+
+    # Insert into queue
     cursor.execute("""
         INSERT INTO queue
         (work_id, submitted_time, updated, submitted_by_id, format)
-        VALUES (%(work_id)s, NOW(), %(updated)s, %(submitted_by_id)s, %(format)s);
+        VALUES (%(work_id)s, NOW(), %(updated)s, %(submitted_by_id)s, %(format)s)
+        returning job_id
     """, {"work_id": work_id, "updated": updated_time, "submitted_by_id": reporter_id, "format": work_format})
+    job_id = cursor.fetchone()
     cursor.close()
+    return job_id[0]
 
 
 class ObjectCacheInfo(BaseModel):
