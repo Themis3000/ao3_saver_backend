@@ -39,7 +39,8 @@ class WorkReport(BaseModel):
 
 @app.post("/report_work")
 async def report_work(work: WorkReport):
-    db.queue_work(work.work_id, work.updated_time, work.format, work.reporter)
+    with db.ConnManager():
+        db.queue_work(work.work_id, work.updated_time, work.format, work.reporter)
     return {"status": "queued"}
 
 
@@ -49,7 +50,8 @@ class JobRequest(BaseModel):
 
 @app.post("/request_job", dependencies=[Depends(admin_token)])
 async def request_job(job_request: JobRequest):
-    job = db.get_job(job_request.client_name)
+    with db.ConnManager():
+        job = db.get_job(job_request.client_name)
 
     if job is None:
         return {"status": "queue empty"}
@@ -66,7 +68,8 @@ class JobFailure(BaseModel):
 @app.post("/job_fail", dependencies=[Depends(admin_token)])
 async def fail_job(job: JobFailure):
     try:
-        db.mark_dispatch_fail(job.dispatch_id, job.fail_status, job.report_code)
+        with db.ConnManager():
+            db.mark_dispatch_fail(job.dispatch_id, job.fail_status, job.report_code)
     except db.NotAuthorized:
         raise HTTPException(status_code=403, detail="not authorized to report failure")
     except db.AlreadyReported:
@@ -104,7 +107,8 @@ async def complete_job(dispatch_id: Annotated[int, Form()],
     supporting_objects = await extract_supporting_objects(form_data)
 
     try:
-        db.submit_dispatch(dispatch_id, report_code, await work.read(), supporting_objects)
+        with db.ConnManager():
+            db.submit_dispatch(dispatch_id, report_code, await work.read(), supporting_objects)
     except db.NotAuthorized:
         raise HTTPException(status_code=403, detail="not authorized to submit job")
     except db.AlreadyReported:
@@ -125,13 +129,15 @@ async def submit_work(work_id: Annotated[int, Form()],
     form_data = await request.form()
     supporting_objects = await extract_supporting_objects(form_data)
 
-    db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format, supporting_objects)
+    with db.ConnManager():
+        db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format, supporting_objects)
     return {"status": "successfully submitted"}
 
 
 @app.get("/works/{work_id}")
 async def get_work(work_id: int, request: Request):
-    work_history = db.get_work_versions(work_id)
+    with db.ConnManager():
+        work_history = db.get_work_versions(work_id)
     if len(work_history) == 0:
         raise HTTPException(status_code=404, detail="work not found")
     newest_work = work_history.pop(0)
@@ -146,7 +152,8 @@ async def get_work(work_id: int, request: Request):
 
 @app.get("/works/dl/{work_id}")
 async def dl_work(work_id: int, file_format: str = "html"):
-    work = storage.get_work(work_id, file_format)
+    with db.ConnManager():
+        work = storage.get_work(work_id, file_format)
     if work is None:
         raise HTTPException(status_code=404, detail="work not found")
     return Response(content=work, media_type=db.format_mimetypes[file_format])
@@ -155,7 +162,8 @@ async def dl_work(work_id: int, file_format: str = "html"):
 @app.get("/works/dl_historical/{work_id}/{timestamp}")
 async def dl_historical_work(work_id: int, timestamp: int, file_format: str = "html"):
     try:
-        work = storage.get_archived_work(work_id, timestamp, file_format)
+        with db.ConnManager():
+            work = storage.get_archived_work(work_id, timestamp, file_format)
     except db.WorkNotFound:
         raise HTTPException(status_code=404, detail="work not found")
     return Response(content=work, media_type=db.format_mimetypes[file_format])
@@ -163,7 +171,8 @@ async def dl_historical_work(work_id: int, timestamp: int, file_format: str = "h
 
 @app.get("/objects/{obj_id}")
 async def get_object(obj_id: int):
-    supporting_object = db.get_supporting_object_file(obj_id)
+    with db.ConnManager():
+        supporting_object = db.get_supporting_object_file(obj_id)
 
     if supporting_object is None:
         raise HTTPException(status_code=404, detail="not found.")

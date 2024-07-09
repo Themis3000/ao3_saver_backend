@@ -26,7 +26,6 @@ conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         user=os.environ["POSTGRESQL_USER"],
                         password=os.environ["POSTGRESQL_PASSWORD"],
                         port=os.environ["POSTGRESQL_PORT"])
-conn.autocommit = True
 
 # Check if db has been initialized. If it hasn't been, initialize it.
 queue_table_cursor = conn.cursor()
@@ -39,6 +38,21 @@ if not has_queue:
     with open("db_init.sql", "r") as f:
         init_cursor.execute(f.read())
         init_cursor.close()
+        conn.commit()
+
+
+class ConnManager:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            conn.rollback()
+            return
+        conn.commit()
 
 
 class InvalidFormat(Exception):
