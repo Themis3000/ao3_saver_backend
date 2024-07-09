@@ -46,6 +46,22 @@ async def report_work(work: WorkReport):
     return {"status": "queued", "job_id": job_id}
 
 
+@app.get("/job_status")
+async def job_status(job_id: int):
+    try:
+        with db.ConnManager():
+            job_status = db.queue_item_status(job_id)
+    except db.JobNotFound:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job_status == db.QueueStatus.IN_QUEUE:
+        return {"status": "queued", "job_id": job_id}
+    if job_status == db.QueueStatus.FAILED:
+        return {"status": "failed", "job_id": job_id}
+    if job_status == db.QueueStatus.COMPLETED:
+        return {"status": "completed", "job_id": job_id}
+
+
 class JobRequest(BaseModel):
     client_name: str = "Unknown"
 

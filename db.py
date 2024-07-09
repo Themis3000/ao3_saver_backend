@@ -3,6 +3,7 @@ import hashlib
 import random
 import re
 import time
+from enum import Enum
 from stat import S_IFREG
 from typing import List, Dict
 from stream_zip import stream_zip, ZIP_64
@@ -100,6 +101,31 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
     job_id = cursor.fetchone()
     cursor.close()
     return job_id[0]
+
+
+class QueueStatus(Enum):
+    IN_QUEUE = 1
+    FAILED = 2
+    COMPLETED = 3
+
+
+def queue_item_status(job_id: int) -> QueueStatus:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT complete, success
+        FROM queue
+        WHERE job_id=%(job_id)s
+    """, {"job_id": job_id})
+    result = cursor.fetchone()
+    cursor.close()
+    if not result:
+        raise JobNotFound(f"Job {job_id} not found")
+    complete, success = result
+    if not complete:
+        return QueueStatus.IN_QUEUE
+    if not success:
+        return QueueStatus.FAILED
+    return QueueStatus.COMPLETED
 
 
 class ObjectCacheInfo(BaseModel):
