@@ -43,7 +43,7 @@ def do_task():
         fail_response = requests.post(failed_endpoint,
                                       headers=auth_header,
                                       json={
-                                          "dispatch_id": job_info["job_id"],
+                                          "dispatch_id": job_info["dispatch_id"],
                                           "report_code": job_info["report_code"],
                                           "fail_status": dl_response.status_code})
         if not fail_response.ok:
