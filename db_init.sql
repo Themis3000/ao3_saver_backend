@@ -83,3 +83,11 @@ create index object_index_sha1_index
 alter table object_index
     add constraint object_index_object_store_sha1_fk
         foreign key (sha1) references object_store;
+
+alter table works_storage
+    add constraint works_storage_pk
+        unique (work_id, updated_time, format);
+
+create unique index queue_work_id_updated_format_uindex
+    on queue (work_id, updated, format)
+    where complete = false;
