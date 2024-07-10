@@ -33,8 +33,8 @@ app.add_middleware(
 class WorkReport(BaseModel):
     work_id: int
     updated_time: int
-    format: str
-    reporter: str = "Unknown"
+    format: str = "html"
+    reporter: str
 
 
 @app.post("/report_work")

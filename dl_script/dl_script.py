@@ -4,7 +4,7 @@ import requests
 import os
 from bs4 import BeautifulSoup
 
-TASK_INTERVAL = 15
+TASK_INTERVAL = 5
 
 admin_token_str = os.environ.get("ADMIN_TOKEN", None)
 auth_header = {"token": admin_token_str}
