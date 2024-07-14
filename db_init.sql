@@ -24,7 +24,8 @@ CREATE TABLE "works_storage"(
     "retrieved_from" VARCHAR(255) NOT NULL,
     "format" VARCHAR(255) NOT NULL,
     "title" VARCHAR(255) NULL,
-    "img_enabled" BOOLEAN NOT NULL DEFAULT True
+    "img_enabled" BOOLEAN NOT NULL DEFAULT True,
+    "sha1" CHAR(40) not null
 );
 ALTER TABLE
     works_storage ADD PRIMARY KEY("storage_id");
@@ -38,7 +39,8 @@ CREATE TABLE "dispatches"(
     "fail_reported" BOOLEAN NOT NULL DEFAULT FALSE,
     "fail_status" SMALLINT NULL,
     "report_code" SMALLINT NOT NULL,
-    "complete" boolean default FALSE not NULL
+    "complete" boolean default FALSE not NULL,
+    "found_as_duplicate" boolean default false not null
 );
 ALTER TABLE
     "dispatches" ADD PRIMARY KEY("dispatch_id");

@@ -279,15 +279,14 @@ class WorkBulkEntry(TypedDict):
 
 
 def add_storage_entry(work_id: int, uploaded_time: int, updated_time: int, location: str, retrieved_from: str,
-                      file_format: str, patch_of: int = None) -> int:
+                      file_format: str, sha1: str, patch_of: int = None) -> int:
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO works_storage
-        (work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        (work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format, sha1)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING storage_id;
-    """, [work_id, uploaded_time, updated_time, location, patch_of,
-          retrieved_from, file_format])
+    """, [work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, file_format, sha1])
     storage_id = cursor.fetchone()[0]
     cursor.close()
     return storage_id
@@ -312,6 +311,9 @@ class StorageData(BaseModel):
     patch_of: int | None
     retrieved_from: str
     format: str
+    title: str | None
+    img_enabled: bool
+    sha1: str
 
 
 def parse_storage_query(result) -> StorageData | None:
@@ -319,13 +321,15 @@ def parse_storage_query(result) -> StorageData | None:
         return None
 
     return StorageData(storage_id=result[0], work_id=result[1], uploaded_time=result[2], updated_time=result[3],
-                       location=result[4], patch_of=result[5], retrieved_from=result[6], format=result[7])
+                       location=result[4], patch_of=result[5], retrieved_from=result[6], format=result[7],
+                       title=result[8], img_enabled=result[9], sha1=result[10])
 
 
 def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | None:
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT storage_id, work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format
+        SELECT storage_id, work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format, title,
+        img_enabled, sha1
         FROM works_storage
         WHERE work_id = %(work_id)s AND format = %(format)s AND patch_of IS NULL
         LIMIT 1;
@@ -339,7 +343,8 @@ def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | 
 def get_storage_entry(storage_id: int) -> StorageData | None:
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT *
+        SELECT storage_id, work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format, title,
+        img_enabled, sha1
         FROM works_storage
         WHERE storage_id = %(storage_id)s
     """, {"storage_id": storage_id})
@@ -406,14 +411,25 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
     work_id, updated_time, submitted_by, file_format = result
 
     from file_storage import storage
-    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE dispatches
-        SET complete = true
-        WHERE job_id = %(job_id)s
-    """, {"job_id": job_id})
-    cursor.close()
+    from storage_managers import DuplicateDetected
+    try:
+        storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
+    except DuplicateDetected:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE dispatches
+            SET complete = true, found_as_duplicate = true
+            WHERE job_id = %(job_id)s
+        """, {"job_id": job_id})
+        cursor.close()
+    else:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE dispatches
+            SET complete = true
+            WHERE job_id = %(job_id)s
+        """, {"job_id": job_id})
+        cursor.close()
     mark_queue_completed(job_id, True)
 
 

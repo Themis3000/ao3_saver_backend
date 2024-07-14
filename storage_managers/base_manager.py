@@ -1,3 +1,4 @@
+import hashlib
 from abc import ABC, abstractmethod
 from typing import List
 from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch,
@@ -35,10 +36,14 @@ class StorageManager(ABC):
                 raise NotImplemented("Cannot handle supporting objects with non-html files.")
             work = self.rewrite_html_sources(work, supporting_objects, work_id)
 
+        previous_head_work = get_head_work_storage_data(work_id, file_format)
+        work_sha1 = hashlib.sha1(work).hexdigest()
+        if previous_head_work.sha1 == work_sha1:
+            raise DuplicateDetected("The work being stored was found to be a duplicate.")
         storage_key = f"{work_id}_{uuid.uuid4()}"
         self.store_file_compressed(storage_key, work)
-        previous_head_work = get_head_work_storage_data(work_id, file_format)
-        storage_id = add_storage_entry(work_id, uploaded_time, updated_time, storage_key, retrieved_from, file_format)
+        storage_id = add_storage_entry(work_id, uploaded_time, updated_time, storage_key, retrieved_from, file_format,
+                                       work_sha1)
 
         if previous_head_work is not None:  # Create diff file to maintain history
             old_work = self.get_file_compressed(previous_head_work.location)
@@ -107,4 +112,8 @@ class StorageManager(ABC):
 
 
 class TooManyIterations(Exception):
+    pass
+
+
+class DuplicateDetected(Exception):
     pass
