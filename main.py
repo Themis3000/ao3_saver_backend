@@ -162,38 +162,27 @@ async def submit_work(work_id: Annotated[int, Form()],
 
 
 @app.get("/works/{work_id}")
-async def get_work(work_id: int, request: Request):
-    with db.ConnManager():
-        work_history = db.get_work_versions(work_id)
-    if len(work_history) == 0:
-        raise HTTPException(status_code=404, detail="work not found")
-    newest_work = work_history.pop(0)
-    if len(work_history) == 0:
-        return RedirectResponse(url=newest_work.newest_url)
-
-    return templates.TemplateResponse(
-        "work_dl.jinja",
-        context={"newest_work": newest_work, "work_history": work_history, "request": request},
-    )
-
-
-@app.get("/works/dl/{work_id}")
-async def dl_work(work_id: int, file_format: str = "html"):
-    with db.ConnManager():
-        work = storage.get_work(work_id, file_format)
-    if work is None:
-        raise HTTPException(status_code=404, detail="work not found")
-    return Response(content=work, media_type=db.format_mimetypes[file_format])
-
-
-@app.get("/works/dl_historical/{work_id}/{timestamp}")
-async def dl_historical_work(work_id: int, timestamp: int, file_format: str = "html"):
-    try:
+async def get_work(work_id: int, request: Request, version: int = None):
+    if version is None:
         with db.ConnManager():
-            work = storage.get_archived_work(work_id, timestamp, file_format)
-    except db.WorkNotFound:
-        raise HTTPException(status_code=404, detail="work not found")
-    return Response(content=work, media_type=db.format_mimetypes[file_format])
+            work_history = db.get_work_versions(work_id)
+        if len(work_history) == 0:
+            raise HTTPException(status_code=404, detail="work not found")
+        newest_work = work_history.pop(0)
+        if len(work_history) == 0:
+            return RedirectResponse(url=newest_work.permalink_url)
+        return templates.TemplateResponse(
+            "work_dl.jinja",
+            context={"newest_work": newest_work, "work_history": work_history, "request": request},
+        )
+
+    with db.ConnManager():
+        work, storage_data = storage.get_work(version)
+    if work is None:
+        raise HTTPException(status_code=404, detail="version not found")
+    if storage_data.work_id != work_id:
+        raise HTTPException(status_code=400, detail="invalid request")
+    return Response(content=work, media_type=db.format_mimetypes[storage_data.format])
 
 
 @app.get("/objects/{obj_id}")

@@ -6,13 +6,13 @@
 </head>
 <body>
 <h2>Archived copies</h2>
-<a href="{{ newest_work.newest_url }}">Most recent archive ({{ newest_work.format }} format) - {{ newest_work.formatted_upload }}</a>
+<a href="{{ newest_work.permalink_url }}">Most recent archive ({{ newest_work.format }} format) - {{ newest_work.formatted_upload }}</a>
 <br><br>
 <i>Older archived works may take a while to download as the archives are architected to prioritize space savings over access speed. Please be patient</i>
 <br>
 <br>
 {% for work in work_history %}
-    <a href="{{ work.archival_url }}">{{ work.formatted_upload }} ({{ newest_work.format }} format)</a>
+    <a href="{{ work.permalink_url }}">{{ work.formatted_upload }} ({{ newest_work.format }} format)</a>
     <br>
 {% endfor %}
 <br>

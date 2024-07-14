@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List
-
-from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch, get_work_storage_by_timestamp,
+from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch,
                 get_storage_entry, WorkNotFound, SupportingObject, object_exists, create_object_entry,
-                create_object_index_entry, find_object_index_entry, SupportingCachedObject)
+                create_object_index_entry, find_object_index_entry, SupportingCachedObject, StorageData)
 import uuid
 import bsdiff4
 import zlib
@@ -47,22 +46,23 @@ class StorageManager(ABC):
             self.store_file_compressed(previous_head_work.location, diff)
             update_storage_patch(previous_head_work.storage_id, storage_id)
 
-    def get_work(self, work_id: int, file_format: str) -> bytes | None:
+    def get_work_by_lookup(self, work_id: int, file_format: str) -> bytes | None:
         head_work = get_head_work_storage_data(work_id, file_format)
         if head_work is None:
             return None
         return self.get_file_compressed(head_work.location)
 
-    def get_archived_work(self, work_id: int, timestamp: int, file_format: str) -> bytes:
-        work_entry = get_work_storage_by_timestamp(work_id, timestamp, file_format)
-        if work_entry is None:
+    def get_work(self, storage_id: int) -> tuple[bytes, StorageData]:
+        storage_entry = get_storage_entry(storage_id)
+        if storage_entry is None:
             raise WorkNotFound("The archived work doesn't seem to exist.")
         storage_patches = []  # list of storage entries to be fetched for patching
+        original_storage_entry = storage_entry
         for _ in range(100):  # limiting iterations just in case
-            storage_patches.insert(0, work_entry)
-            if work_entry.patch_of is None:
+            storage_patches.insert(0, storage_entry)
+            if storage_entry.patch_of is None:
                 break
-            work_entry = get_storage_entry(work_entry.patch_of)
+            storage_entry = get_storage_entry(storage_entry.patch_of)
         else:
             raise TooManyIterations("Too many iterations to reach head work. Is there an infinite loop?")
 
@@ -71,7 +71,7 @@ class StorageManager(ABC):
             diff_bytes = self.get_file_compressed(storage_patch.location)
             master_file = bsdiff4.patch(master_file, diff_bytes)
 
-        return master_file
+        return master_file, original_storage_entry
 
     def rewrite_html_sources(self, work: bytes, supporting_objects: List[SupportingObject | SupportingCachedObject],
                              work_id: int) -> bytes:

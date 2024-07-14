@@ -336,20 +336,6 @@ def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | 
     return parse_storage_query(result)
 
 
-def get_work_storage_by_timestamp(work_id: int, timestamp: int, file_format: str) -> StorageData | None:
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT *
-        FROM works_storage
-        WHERE work_id = %(work_id)s AND format = %(format)s AND uploaded_time = %(timestamp)s
-        LIMIT 1;
-    """, {"work_id": work_id, "format": file_format, "timestamp": timestamp})
-    result = cursor.fetchone()
-    cursor.close()
-
-    return parse_storage_query(result)
-
-
 def get_storage_entry(storage_id: int) -> StorageData | None:
     cursor = conn.cursor()
     cursor.execute("""
@@ -446,7 +432,7 @@ def get_bulk_works(works: List[WorkBulkEntry]):
 
     def work_files():
         for work in works:
-            work_contents = storage.get_work(work["work_id"])
+            work_contents = storage.get_work_by_lookup(work["work_id"])
             if work_contents is False:
                 failed_works.append(work)
                 continue
@@ -469,6 +455,10 @@ class Work(BaseModel):
     location: str
     patch_of: int | None
     retrieved_from: str
+
+    @property
+    def permalink_url(self) -> str:
+        return f"/works/{self.work_id}?version={self.storage_id}"
 
     @property
     def archival_url(self) -> str:
