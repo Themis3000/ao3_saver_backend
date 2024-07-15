@@ -48,6 +48,12 @@ async def report_work(work: WorkReport):
     return {"status": "queued", "job_id": job_id}
 
 
+@app.get("/work_exists/{work_id}")
+async def work_exists(work_id: int):
+    with db.ConnManager():
+        return {"exists": db.work_exists(work_id)}
+
+
 @app.get("/job_status")
 async def job_status(job_id: int):
     try:

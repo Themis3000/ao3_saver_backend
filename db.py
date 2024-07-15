@@ -64,6 +64,14 @@ class WorkNotFound(Exception):
     pass
 
 
+def work_exists(work_id: int) -> bool:
+    cursor = conn.cursor()
+    cursor.execute(f"select exists(select from works_storage where work_id = %(work_id)s)", {"work_id": work_id})
+    result = cursor.fetchone()[0]
+    cursor.close()
+    return result
+
+
 def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: str, title: str = None,
                author: str = None) -> int | None:
     if work_format not in valid_formats:
