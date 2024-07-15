@@ -184,7 +184,9 @@ async def get_work(work_id: int, request: Request, version: int = None):
         raise HTTPException(status_code=404, detail="version not found")
     if storage_data.work_id != work_id:
         raise HTTPException(status_code=400, detail="invalid request")
-    return Response(content=work, media_type=db.format_mimetypes[storage_data.format])
+    return Response(content=work,
+                    media_type=db.format_mimetypes[storage_data.format],
+                    headers={"Cache-Control": "max-age=31536000, immutable"})
 
 
 @app.get("/objects/{obj_id}")
