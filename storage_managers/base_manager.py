@@ -30,7 +30,8 @@ class StorageManager(ABC):
         return zlib.decompress(self.get_file(key))
 
     def store_work(self, work_id: int, work: bytes, uploaded_time: int, updated_time: int, retrieved_from: str,
-                   file_format: str, supporting_objects: List[SupportingObject | SupportingCachedObject]) -> None:
+                   file_format: str, supporting_objects: List[SupportingObject | SupportingCachedObject],
+                   title: str = None, author: str = None) -> None:
         if supporting_objects:
             if file_format != 'html':
                 raise NotImplemented("Cannot handle supporting objects with non-html files.")
@@ -38,12 +39,12 @@ class StorageManager(ABC):
 
         previous_head_work = get_head_work_storage_data(work_id, file_format)
         work_sha1 = hashlib.sha1(work).hexdigest()
-        if previous_head_work.sha1 == work_sha1:
+        if previous_head_work is not None and previous_head_work.sha1 == work_sha1:
             raise DuplicateDetected("The work being stored was found to be a duplicate.")
         storage_key = f"{work_id}_{uuid.uuid4()}"
         self.store_file_compressed(storage_key, work)
         storage_id = add_storage_entry(work_id, uploaded_time, updated_time, storage_key, retrieved_from, file_format,
-                                       work_sha1)
+                                       work_sha1, title, author)
 
         if previous_head_work is not None:  # Create diff file to maintain history
             old_work = self.get_file_compressed(previous_head_work.location)

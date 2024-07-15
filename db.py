@@ -64,7 +64,8 @@ class WorkNotFound(Exception):
     pass
 
 
-def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: str) -> int | None:
+def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: str, title: str = None,
+               author: str = None) -> int | None:
     if work_format not in valid_formats:
         raise InvalidFormat(f"{work_format} is not a valid format")
 
@@ -94,10 +95,11 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
     # Insert into queue
     cursor.execute("""
         INSERT INTO queue
-        (work_id, submitted_time, updated, submitted_by_id, format)
-        VALUES (%(work_id)s, NOW(), %(updated)s, %(submitted_by_id)s, %(format)s)
+        (work_id, submitted_time, updated, submitted_by_id, format, title, author)
+        VALUES (%(work_id)s, NOW(), %(updated)s, %(submitted_by_id)s, %(format)s, %(title)s, %(author)s)
         returning job_id
-    """, {"work_id": work_id, "updated": updated_time, "submitted_by_id": reporter_id, "format": work_format})
+    """, {"work_id": work_id, "updated": updated_time, "submitted_by_id": reporter_id, "format": work_format,
+          "title": title, "author": author})
     job_id = cursor.fetchone()
     cursor.close()
     return job_id[0]
@@ -279,14 +281,14 @@ class WorkBulkEntry(TypedDict):
 
 
 def add_storage_entry(work_id: int, uploaded_time: int, updated_time: int, location: str, retrieved_from: str,
-                      file_format: str, sha1: str, patch_of: int = None) -> int:
+                      file_format: str, sha1: str, title: str = None, author: str = None, patch_of: int = None) -> int:
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO works_storage
-        (work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format, sha1)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        (work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format, sha1, title, author)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING storage_id;
-    """, [work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, file_format, sha1])
+    """, [work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, file_format, sha1, title, author])
     storage_id = cursor.fetchone()[0]
     cursor.close()
     return storage_id
@@ -401,19 +403,20 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
 
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT work_id, updated, submitted_by_id, format
+        SELECT work_id, updated, submitted_by_id, format, title, author
         FROM queue
         WHERE job_id = %(job_id)s
     """, {"job_id": job_id})
     result = cursor.fetchone()
     cursor.close()
 
-    work_id, updated_time, submitted_by, file_format = result
+    work_id, updated_time, submitted_by, file_format, title, author = result
 
     from file_storage import storage
     from storage_managers import DuplicateDetected
     try:
-        storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
+        storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects,
+                           title, author)
     except DuplicateDetected:
         cursor = conn.cursor()
         cursor.execute("""

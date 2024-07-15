@@ -6,7 +6,9 @@ CREATE TABLE "queue"(
     "submitted_by_id" VARCHAR(255) NOT NULL,
     "format" VARCHAR(255) NOT NULL,
     "complete" boolean default false not null,
-    "success" boolean default false not null
+    "success" boolean default false not null,
+    "title" varchar(255),
+    "author" varchar(255)
 );
 ALTER TABLE
     "queue" ADD PRIMARY KEY("job_id");
@@ -25,7 +27,8 @@ CREATE TABLE "works_storage"(
     "format" VARCHAR(255) NOT NULL,
     "title" VARCHAR(255) NULL,
     "img_enabled" BOOLEAN NOT NULL DEFAULT True,
-    "sha1" CHAR(40) not null
+    "sha1" CHAR(40) not null,
+    "author" varchar(255)
 );
 ALTER TABLE
     works_storage ADD PRIMARY KEY("storage_id");

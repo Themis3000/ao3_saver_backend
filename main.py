@@ -35,12 +35,14 @@ class WorkReport(BaseModel):
     updated_time: int
     format: str = "html"
     reporter: str
+    title: str = None
+    author: str = None
 
 
 @app.post("/report_work")
 async def report_work(work: WorkReport):
     with db.ConnManager():
-        job_id = db.queue_work(work.work_id, work.updated_time, work.format, work.reporter)
+        job_id = db.queue_work(work.work_id, work.updated_time, work.format, work.reporter, work.title, work.author)
     if job_id is None:
         return {"status": "already fetched"}
     return {"status": "queued", "job_id": job_id}
