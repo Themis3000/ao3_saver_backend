@@ -184,7 +184,7 @@ def get_job(client_name: str) -> None | JobOrder:
         SELECT
         FROM dispatches
         WHERE dispatches.job_id = queue.job_id
-        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:2:00')
+        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:02:00')
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
@@ -196,6 +196,12 @@ def get_job(client_name: str) -> None | JobOrder:
         return None
 
     job_id, work_id, work_format, updated = queue_query
+
+    fail_count = get_queue_dispatch_count(job_id)
+    if fail_count >= 3:
+        mark_queue_completed(job_id, False)
+        return get_job(client_name)
+
     dispatch_id, report_code = dispatch_job(job_id, client_name)
     job_order = JobOrder(dispatch_id=dispatch_id,
                          job_id=job_id,
@@ -264,19 +270,19 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
         WHERE dispatch_id = %(dispatch_id)s;
     """, {"fail_status": fail_code, "dispatch_id": dispatch_id, "job_id": job_id})
 
-    fail_count = get_queue_fail_count(job_id)
+    fail_count = get_queue_dispatch_count(job_id)
     if fail_count >= 3:
         mark_queue_completed(job_id, False)
 
     cursor.close()
 
 
-def get_queue_fail_count(job_id: int) -> int:
+def get_queue_dispatch_count(job_id: int) -> int:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT COUNT(*)
         FROM dispatches
-        WHERE job_id = %s AND fail_reported = true;
+        WHERE job_id = %s;
     """, (job_id,))
     fail_count = cursor.fetchone()[0]
     cursor.close()
