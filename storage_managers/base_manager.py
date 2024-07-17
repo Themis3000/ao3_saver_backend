@@ -87,7 +87,7 @@ class StorageManager(ABC):
         # Validate that all supporting object urls are actually present in work
         for supporting_object in supporting_objects:
             if supporting_object.url not in work_text and html.escape(supporting_object.url) not in work_text:
-                raise ValueError(f"Supporting object URL '{supporting_object.url}' not found in work.")
+                raise ValueError(f"Supporting object URL '{supporting_object.url}' not found in work {work_id}")
 
         # Upload supporting objects, if not already uploaded.
         for supporting_object in supporting_objects:
@@ -115,7 +115,7 @@ class StorageManager(ABC):
                 if escaped_url in work_text:
                     work_text = work_text.replace(escaped_url, f"/objects/{object_index_id}")
                 else:
-                    raise ValueError(f"Supporting object URL '{supporting_object.url}' not found despite passing check")
+                    raise ValueError(f"Supporting object URL '{supporting_object.url}' not found despite passing check in {work_id}")
 
         return work_text.encode('utf-8')
 
