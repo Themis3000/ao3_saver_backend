@@ -1,4 +1,5 @@
 import hashlib
+import html
 from abc import ABC, abstractmethod
 from typing import List
 from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch,
@@ -85,7 +86,7 @@ class StorageManager(ABC):
 
         # Validate that all supporting object urls are actually present in work
         for supporting_object in supporting_objects:
-            if work_text.find(supporting_object.url) == -1:
+            if supporting_object.url not in work_text and html.escape(supporting_object.url) not in work_text:
                 raise ValueError(f"Supporting object URL '{supporting_object.url}' not found in work.")
 
         # Upload supporting objects, if not already uploaded.
@@ -107,7 +108,14 @@ class StorageManager(ABC):
                 if object_index_id is None:
                     object_index_id = create_object_index_entry(sha1, supporting_object.url, supporting_object.etag,
                                                                 work_id, supporting_object.mimetype)
-            work_text = work_text.replace(supporting_object.url, f"/objects/{object_index_id}")
+            if supporting_object.url in work_text:
+                work_text = work_text.replace(supporting_object.url, f"/objects/{object_index_id}")
+            else:
+                escaped_url = html.escape(supporting_object.url)
+                if escaped_url in work_text:
+                    work_text = work_text.replace(escaped_url, f"/objects/{object_index_id}")
+                else:
+                    raise ValueError(f"Supporting object URL '{supporting_object.url}' not found despite passing check")
 
         return work_text.encode('utf-8')
 
