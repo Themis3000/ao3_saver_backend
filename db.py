@@ -184,7 +184,7 @@ def get_job(client_name: str) -> None | JobOrder:
         SELECT
         FROM dispatches
         WHERE dispatches.job_id = queue.job_id
-        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:02:00')
+        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:04:00')
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
