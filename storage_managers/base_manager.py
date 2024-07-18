@@ -42,7 +42,7 @@ class StorageManager(ABC):
         work_sha1 = hashlib.sha1(work).hexdigest()
         if previous_head_work is not None and previous_head_work.sha1 == work_sha1:
             raise DuplicateDetected("The work being stored was found to be a duplicate.")
-        storage_key = f"{work_id}_{uuid.uuid4()}"
+        storage_key = f"{work_id}_{work_sha1}"
         self.store_file_compressed(storage_key, work)
         storage_id = add_storage_entry(work_id, uploaded_time, updated_time, storage_key, retrieved_from, file_format,
                                        work_sha1, title, author)
