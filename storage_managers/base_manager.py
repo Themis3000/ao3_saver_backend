@@ -92,7 +92,7 @@ class StorageManager(ABC):
         # Upload supporting objects, if not already uploaded.
         for supporting_object in supporting_objects:
             if isinstance(supporting_object, SupportingCachedObject):
-                work_text = work_text.replace(supporting_object.url, f"/objects/{supporting_object.object_id}")
+                work_text = work_text.replace(supporting_object.url, f"/objects/{supporting_object.object_id}", 1)
                 continue
 
             sha1 = supporting_object.data_sha1()
@@ -109,11 +109,11 @@ class StorageManager(ABC):
                     object_index_id = create_object_index_entry(sha1, supporting_object.url, supporting_object.etag,
                                                                 work_id, supporting_object.mimetype)
             if supporting_object.url in work_text:
-                work_text = work_text.replace(supporting_object.url, f"/objects/{object_index_id}")
+                work_text = work_text.replace(supporting_object.url, f"/objects/{object_index_id}", 1)
             else:
                 escaped_url = html.escape(supporting_object.url)
                 if escaped_url in work_text:
-                    work_text = work_text.replace(escaped_url, f"/objects/{object_index_id}")
+                    work_text = work_text.replace(escaped_url, f"/objects/{object_index_id}", 1)
                 else:
                     raise ValueError(f"Supporting object URL '{supporting_object.url}' not found despite passing check in {work_id}")
 
