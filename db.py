@@ -11,6 +11,7 @@ from typing_extensions import TypedDict
 from pydantic import BaseModel
 import os.path
 import psycopg2
+import db_updater
 
 valid_formats = ["pdf", "epub", "azw3", "mobi", "html", "txt"]
 format_mimetypes = {
@@ -28,19 +29,6 @@ conn = psycopg2.connect(database=os.environ["POSTGRESQL_DATABASE"],
                         password=os.environ["POSTGRESQL_PASSWORD"],
                         port=os.environ["POSTGRESQL_PORT"])
 
-# Check if db has been initialized. If it hasn't been, initialize it.
-queue_table_cursor = conn.cursor()
-queue_table_cursor.execute(
-    "select exists(select * from information_schema.tables where table_name='queue')")
-has_queue = queue_table_cursor.fetchone()[0]
-queue_table_cursor.close()
-if not has_queue:
-    init_cursor = conn.cursor()
-    with open("db_init.sql", "r") as f:
-        init_cursor.execute(f.read())
-        init_cursor.close()
-        conn.commit()
-
 
 class ConnManager:
     def __init__(self):
@@ -54,6 +42,11 @@ class ConnManager:
             conn.rollback()
             return
         conn.commit()
+
+
+# Check if db has been initialized. If it hasn't been, initialize it.
+with ConnManager():
+    db_updater.ensure_schema_updated(conn)
 
 
 class InvalidFormat(Exception):
