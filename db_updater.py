@@ -40,12 +40,13 @@ def ensure_schema_updated(conn):
         init_cursor.execute("""
             create table unfetched_objects
             (
-                object_id       integer default nextval('object_index_object_id_seq'::regclass) not null
+                object_id       integer   default nextval('object_index_object_id_seq'::regclass) not null
                     constraint unfetched_objects_pk
                         primary key,
-                request_url     varchar(2000)                                                   not null,
-                associated_work integer                                                         not null,
-                stalled         boolean default false                                           not null
+                request_url     varchar(2000)                                                     not null,
+                associated_work integer                                                           not null,
+                stalled         boolean   default false                                           not null,
+                timestamp       timestamp default now()                                           not null
             );
             
             create table object_dispatches
@@ -63,6 +64,19 @@ def ensure_schema_updated(conn):
             create table version_info
             (
                 version integer not null
+            );
+            
+            create index object_index_request_url_index
+                on object_index (request_url);
+            
+            create table duplicate_object_index_mapping
+            (
+                object_id           integer not null
+                    constraint duplicate_object_index_mapping_pk
+                        primary key,
+                duplicate_object_id integer
+                    constraint duplicate_object_index_mapping_object_index_object_id_fk
+                        references object_index
             );
             
             INSERT INTO public.version_info (version)

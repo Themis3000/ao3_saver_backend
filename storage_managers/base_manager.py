@@ -4,11 +4,12 @@ from abc import ABC, abstractmethod
 from typing import List
 from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch,
                 get_storage_entry, WorkNotFound, SupportingObject, object_exists, create_object_entry,
-                create_object_index_entry, find_object_index_entry, SupportingCachedObject, StorageData)
-import uuid
+                create_object_index_entry, find_object_index_entry, SupportingCachedObject, StorageData,
+                SupportingObjectType, SupportingFailedObject, insert_unfetched_object, UnfetchedObject)
 import bsdiff4
 import zlib
 from bs4.dammit import UnicodeDammit
+from bs4 import BeautifulSoup
 
 
 class StorageManager(ABC):
@@ -31,12 +32,11 @@ class StorageManager(ABC):
         return zlib.decompress(self.get_file(key))
 
     def store_work(self, work_id: int, work: bytes, uploaded_time: int, updated_time: int, retrieved_from: str,
-                   file_format: str, supporting_objects: List[SupportingObject | SupportingCachedObject],
-                   title: str = None, author: str = None) -> None:
-        if supporting_objects:
-            if file_format != 'html':
-                raise NotImplemented("Cannot handle supporting objects with non-html files.")
-            work = self.rewrite_html_sources(work, supporting_objects, work_id)
+                   file_format: str, title: str = None, author: str = None) -> List[UnfetchedObject]:
+        if file_format == 'html':
+            work, unfetched_objects = self.rewrite_html_sources(work, work_id)
+        else:
+            unfetched_objects = []
 
         previous_head_work = get_head_work_storage_data(work_id, file_format)
         work_sha1 = hashlib.sha1(work).hexdigest()
@@ -52,6 +52,8 @@ class StorageManager(ABC):
             diff = bsdiff4.diff(work, old_work)
             self.store_file_compressed(previous_head_work.location, diff)
             update_storage_patch(previous_head_work.storage_id, storage_id)
+
+        return unfetched_objects
 
     def get_work_by_lookup(self, work_id: int, file_format: str) -> bytes | None:
         head_work = get_head_work_storage_data(work_id, file_format)
@@ -80,44 +82,23 @@ class StorageManager(ABC):
 
         return master_file, original_storage_entry
 
-    def rewrite_html_sources(self, work: bytes, supporting_objects: List[SupportingObject | SupportingCachedObject],
-                             work_id: int) -> bytes:
-        work_text = UnicodeDammit(work, is_html=True).unicode_markup
+    @staticmethod
+    def rewrite_html_sources(work: bytes, work_id: int) -> tuple[bytes, List[UnfetchedObject]]:
+        """Rewrites html sources, then returns new work and list of unfetched objects"""
+        work_soup = BeautifulSoup(work, 'html.parser', is_html=True)
 
-        # Validate that all supporting object urls are actually present in work
-        for supporting_object in supporting_objects:
-            if supporting_object.url not in work_text and html.escape(supporting_object.url) not in work_text:
-                raise ValueError(f"Supporting object URL '{supporting_object.url}' not found in work {work_id}")
+        unfetched_objects = []
+        for img in work_soup.find_all('img', src=True):
+            original_src = img['src']
+            img['onerror'] = f"this.src='{original_src}';this.onerror=''"
+            object_id = insert_unfetched_object(original_src, work_id)
+            img['src'] = f"/objects/{object_id}"
+            unfetched_objects.append(UnfetchedObject(object_id=object_id,
+                                                     request_url=original_src,
+                                                     associated_work=work,
+                                                     stalled=False))
 
-        # Upload supporting objects, if not already uploaded.
-        for supporting_object in supporting_objects:
-            if isinstance(supporting_object, SupportingCachedObject):
-                work_text = work_text.replace(supporting_object.url, f"/objects/{supporting_object.object_id}", 1)
-                continue
-
-            sha1 = supporting_object.data_sha1()
-            object_index_id: int
-            if not object_exists(sha1):
-                file_key = f"obj_{sha1}"
-                self.store_file(file_key, supporting_object.data)
-                create_object_entry(sha1, file_key)
-                object_index_id = create_object_index_entry(sha1, supporting_object.url, supporting_object.etag,
-                                                            work_id, supporting_object.mimetype)
-            else:
-                object_index_id = find_object_index_entry(sha1, supporting_object.url, supporting_object.etag, work_id)
-                if object_index_id is None:
-                    object_index_id = create_object_index_entry(sha1, supporting_object.url, supporting_object.etag,
-                                                                work_id, supporting_object.mimetype)
-            if supporting_object.url in work_text:
-                work_text = work_text.replace(supporting_object.url, f"/objects/{object_index_id}", 1)
-            else:
-                escaped_url = html.escape(supporting_object.url)
-                if escaped_url in work_text:
-                    work_text = work_text.replace(escaped_url, f"/objects/{object_index_id}", 1)
-                else:
-                    raise ValueError(f"Supporting object URL '{supporting_object.url}' not found despite passing check in {work_id}")
-
-        return work_text.encode('utf-8')
+        return work_soup.markup.encode('utf-8'), unfetched_objects
 
 
 class TooManyIterations(Exception):

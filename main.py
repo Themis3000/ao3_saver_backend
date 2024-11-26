@@ -106,50 +106,62 @@ async def fail_job(job: JobFailure):
     return {"status": "successfully failed!"}
 
 
-async def extract_supporting_objects(form_data) -> List[db.SupportingObject | db.SupportingCachedObject]:
-    supporting_data = []
-    for i in itertools.count():
-        file: UploadFile = form_data.get(f"supporting_objects_{i}")
-
-        if file is None:
-            cached_object_id = form_data.get(f"cached_{i}_object_id")
-            cached_url = form_data.get(f"cached_{i}_url")
-
-            if not cached_object_id or not cached_url:
-                break
-
-            supporting_data.append(db.SupportingCachedObject(url=cached_url, object_id=cached_object_id))
-            continue
-
-        url = form_data.get(f"supporting_objects_{i}_url")
-        etag = form_data.get(f"supporting_objects_{i}_etag")
-        if url is None or etag is None:
-            raise HTTPException(status_code=400, detail="missing url or etag data")
-        mimetype = file.headers.get("Content-Type", "")
-        file_name = file.filename
-        supporting_object = db.SupportingObject(url=url, etag=etag, mimetype=mimetype, file_name=file_name, data=await file.read())
-        supporting_data.append(supporting_object)
-    return supporting_data
-
-
 @app.post("/submit_job", dependencies=[Depends(admin_token)])
 async def complete_job(dispatch_id: Annotated[int, Form()],
                        report_code: Annotated[int, Form()],
-                       work: Annotated[UploadFile, File()],
-                       request: Request):
+                       work: Annotated[UploadFile, File()]):
     """For submitting a completed job"""
-    form_data = await request.form()
-    supporting_objects = await extract_supporting_objects(form_data)
-
     try:
         with db.ConnManager():
-            db.submit_dispatch(dispatch_id, report_code, await work.read(), supporting_objects)
+            unfetched_objects = db.submit_dispatch(dispatch_id, report_code, await work.read())
     except db.NotAuthorized:
         raise HTTPException(status_code=403, detail="not authorized to submit job")
     except db.AlreadyReported:
         raise HTTPException(status_code=409, detail="this job has already been reported on")
     except db.JobNotFound:
         raise HTTPException(status_code=404, detail="the dispatch id is invalid")
+    return {"status": "successfully submitted", "unfetched_objects": unfetched_objects}
+
+
+@app.post("/submit_object", dependencies=[Depends(admin_token)])
+async def submit_object(object_id: Annotated[int, Form()],
+                        etag: Annotated[str, Form()],
+                        mimetype: Annotated[str, Form()],
+                        object_file: Annotated[UploadFile, File()]):
+    """For submitting an unfetched object"""
+    try:
+        with db.ConnManager():
+            db.store_unfetched_object(object_file=await object_file.read(),
+                                      object_id=object_id,
+                                      etag=etag,
+                                      mimetype=mimetype)
+    except db.ObjectNotFound:
+        raise HTTPException(status_code=404, detail="the object id is invalid")
+    return {"status": "successfully submitted"}
+
+
+@app.post("/submit_object", dependencies=[Depends(admin_token)])
+async def submit_object(object_id: Annotated[int, Form()],
+                        submission_type: Annotated[str, Form()],
+                        etag: Annotated[str, Form(None)],
+                        mimetype: Annotated[str, Form(None)],
+                        object_file: Annotated[UploadFile, File(None)]):
+    """For submitting an unfetched object never part of a dispatch"""
+    try:
+        with db.ConnManager():
+            if submission_type == 'file':
+                if submission_type is None or etag is None or mimetype is None or object_file is None:
+                    raise HTTPException(status_code=400, detail="missing submission values")
+                db.store_unfetched_object(object_file=await object_file.read(),
+                                          object_id=object_id,
+                                          etag=etag,
+                                          mimetype=mimetype)
+            elif submission_type == 'cached':
+                pass
+            elif submission_type == 'failed':
+                pass
+    except db.ObjectNotFound:
+        raise HTTPException(status_code=404, detail="the object id is invalid")
     return {"status": "successfully submitted"}
 
 
@@ -158,14 +170,10 @@ async def submit_work(work_id: Annotated[int, Form()],
                       work: Annotated[UploadFile, File()],
                       file_format: Annotated[str, Form()],
                       updated_time: Annotated[int, Form()],
-                      requester_id: Annotated[str, Form()],
-                      request: Request):
+                      requester_id: Annotated[str, Form()]):
     """For submitting a work that was never part of an assigned job"""
-    form_data = await request.form()
-    supporting_objects = await extract_supporting_objects(form_data)
-
     with db.ConnManager():
-        db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format, supporting_objects)
+        db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format)
     return {"status": "successfully submitted"}
 
 

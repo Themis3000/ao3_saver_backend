@@ -5,7 +5,7 @@ import re
 import time
 from enum import Enum
 from stat import S_IFREG
-from typing import List, Dict
+from typing import List, Dict, Union
 from stream_zip import stream_zip, ZIP_64
 from typing_extensions import TypedDict
 from pydantic import BaseModel
@@ -54,6 +54,10 @@ class InvalidFormat(Exception):
 
 
 class WorkNotFound(Exception):
+    pass
+
+
+class ObjectNotFound(Exception):
     pass
 
 
@@ -131,6 +135,30 @@ def queue_item_status(job_id: int) -> QueueStatus:
     return QueueStatus.COMPLETED
 
 
+class UnfetchedObject(BaseModel):
+    object_id: int
+    request_url: str
+    associated_work: int
+    stalled: bool
+    etag: str | None
+    sha1: str | None
+
+    def model_post_init(self, __context):
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT etag, sha1
+            FROM object_index
+            WHERE request_url = %(request_url)s
+            ORDER BY creation_time DESC
+            LIMIT 1;
+        """, (self.request_url,))
+        result = cursor.fetchone()
+        cursor.close()
+        if not result:
+            return
+        self.etag, self.sha1 = result
+
+
 class ObjectCacheInfo(BaseModel):
     etag: str | None
     time: datetime.datetime
@@ -147,24 +175,6 @@ class JobOrder(BaseModel):
     report_code: int
     updated: int
     get_img: bool = True
-    cache_infos: Dict[str, ObjectCacheInfo] = {}
-
-    def model_post_init(self, __context):
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT
-                DISTINCT ON (request_url) request_url,
-                etag, creation_time, object_id, sha1
-            FROM object_index
-            WHERE associated_work = %s
-            ORDER BY request_url, creation_time DESC
-            LIMIT 200;
-        """, (self.work_id,))
-        result = cursor.fetchall()
-        cursor.close()
-        self.cache_infos = {
-            row[0]: ObjectCacheInfo(url=row[0], etag=row[1], time=row[2], object_id=row[3], sha1=row[4])
-            for row in result}
 
 
 def get_job(client_name: str) -> None | JobOrder:
@@ -389,8 +399,15 @@ class SupportingCachedObject(BaseModel):
     object_id: int
 
 
-def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
-                    supporting_objects: List[SupportingObject | SupportingCachedObject]) -> None:
+class SupportingFailedObject(BaseModel):
+    url: str
+    fail_reason: int
+
+
+SupportingObjectType = Union[SupportingObject, SupportingCachedObject, SupportingFailedObject]
+
+
+def submit_dispatch(dispatch_id: int, report_code: int, work: bytes) -> List[UnfetchedObject]:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT report_code, job_id
@@ -421,9 +438,10 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
 
     from file_storage import storage
     from storage_managers import DuplicateDetected
+    unfetched_objects = []
     try:
-        storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects,
-                           title, author)
+        unfetched_objects = storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format,
+                                               title, author)
     except DuplicateDetected:
         cursor = conn.cursor()
         cursor.execute("""
@@ -442,11 +460,12 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
         cursor.close()
     mark_queue_completed(job_id, True)
 
+    return unfetched_objects
 
-def sideload_work(work_id, work, updated_time, submitted_by, file_format,
-                  supporting_objects: List[SupportingObject | SupportingCachedObject]):
+
+def sideload_work(work_id, work, updated_time, submitted_by, file_format) -> List[UnfetchedObject]:
     from file_storage import storage
-    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
+    return storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format)
 
 
 re_clean_filename = re.compile(r"[/\\?%*:|\"<>\x7F\x00-\x1F]")
@@ -565,6 +584,82 @@ def create_object_index_entry(sha1: str, request_url: str, etag: str | None, ass
     return result[0]
 
 
+class UnfetchedObject(BaseModel):
+    object_id: int
+    request_url: str
+    associated_work: int
+    stalled: bool
+
+
+def get_unfetched_object(object_id: int) -> UnfetchedObject:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT object_id, request_url, associated_work, stalled
+        FROM unfetched_objects
+        WHERE object_id = %(object_id)s
+    """, {"object_id": object_id})
+    results = cursor.fetchone()
+    cursor.close()
+    if results is None:
+        raise ObjectNotFound(f"No unfetched object found for given object_id {object_id}")
+    return UnfetchedObject(object_id=results[0], request_url=results[1], associated_work=results[2], stalled=results[3])
+
+
+def store_unfetched_object(object_file: bytes, object_id: int, etag: str, mimetype: str):
+    unfetched_object = get_unfetched_object(object_id)
+    sha1 = hashlib.sha1(object_file).hexdigest()
+
+    sufficient_object_entry = find_object_index_entry(sha1=sha1,
+                                                      request_url=unfetched_object.request_url,
+                                                      etag=etag,
+                                                      associated_work=unfetched_object.associated_work)
+    if sufficient_object_entry is not None:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE
+            FROM unfetched_objects
+            WHERE object_id = %(object_id)s;
+            
+            INSERT INTO duplicate_object_index_mapping (object_id, duplicate_object_id)
+            VALUES (%(object_id)s, %(duplicate_object_id)s);
+        """, {"object_id": object_id, "duplicate_object_id": sufficient_object_entry})
+        cursor.close()
+        return
+
+    object_sha1_exists = object_exists(sha1)
+    if object_sha1_exists:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE
+            FROM unfetched_objects
+            WHERE object_id = %(object_id)s;
+        
+            INSERT INTO object_index (request_url, sha1, etag, mimetype, associated_work)
+            VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s, %(associated_work)s);
+        """, {"sha1": sha1, "request_url": unfetched_object.request_url, "etag": etag,
+              "associated_work": unfetched_object.associated_work, "mimetype": mimetype})
+        cursor.close()
+        return
+
+    key = f"obj_{sha1}"
+    from file_storage import storage
+    storage.store_file(key, object_file)
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE
+        FROM unfetched_objects
+        WHERE object_id = %(object_id)s;
+        
+        INSERT INTO object_store (sha1, location)
+        VALUES (%(sha1)s, %(location)s);
+    
+        INSERT INTO object_index (request_url, sha1, etag, mimetype, associated_work)
+        VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s, %(associated_work)s);
+    """, {"sha1": sha1, "request_url": unfetched_object.request_url, "etag": etag,
+          "associated_work": unfetched_object.associated_work, "mimetype": mimetype, "location": key})
+    cursor.close()
+
+
 class SupportingObjectData(BaseModel):
     mimetype: str
     location: str
@@ -587,3 +682,15 @@ def get_supporting_object_file(obj_id: int) -> SupportingObjectData | None:
     from file_storage import storage
     data = storage.get_file(result[1])
     return SupportingObjectData(mimetype=result[0], location=result[1], data=data)
+
+
+def insert_unfetched_object(request_url: str, associated_work: int) -> int:
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO unfetched_objects(request_url, associated_work)
+        VALUES (%(request_url)s, %(associated_work)s)
+        RETURNING object_id;
+    """, {"request_url": request_url, "associated_work": associated_work})
+    object_id = cursor.fetchone()[0]
+    cursor.close()
+    return object_id
