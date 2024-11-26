@@ -82,6 +82,9 @@ def ensure_schema_updated(conn):
                         references object_index
             );
             
+            alter table object_index
+                alter column mimetype drop not null;
+            
             INSERT INTO public.version_info (version)
             VALUES (2);
         """)

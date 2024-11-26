@@ -143,15 +143,15 @@ async def submit_object(object_id: Annotated[int, Form()],
 @app.post("/sideload_object", dependencies=[Depends(admin_token)])
 async def sideload_object(object_id: Annotated[int, Form()],
                           submission_type: Annotated[str, Form()],
-                          etag: Annotated[str, Form()],
-                          mimetype: Annotated[str, Form()],
-                          object_file: Annotated[UploadFile, File()]):
+                          object_file: Annotated[UploadFile, File()],
+                          etag: Annotated[str, Form()] = None,
+                          mimetype: Annotated[str, Form()] = None):
     """For submitting an unfetched object never part of a dispatch. HALF BAKED AND UNTESTED."""
     try:
         with db.ConnManager():
             if submission_type == 'file':
-                if submission_type is None or etag is None or mimetype is None or object_file is None:
-                    raise HTTPException(status_code=400, detail="missing submission values")
+                if object_file is None:
+                    raise HTTPException(status_code=400, detail="missing file in submission")
                 db.store_unfetched_object(object_file=await object_file.read(),
                                           object_id=object_id,
                                           etag=etag,
