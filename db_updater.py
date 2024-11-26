@@ -69,6 +69,9 @@ def ensure_schema_updated(conn):
             create index object_index_request_url_index
                 on object_index (request_url);
             
+            create index object_dispatches_object_id_index
+                on object_dispatches (object_id);
+
             create table duplicate_object_index_mapping
             (
                 object_id           integer not null
