@@ -140,12 +140,12 @@ async def submit_object(object_id: Annotated[int, Form()],
     return {"status": "successfully submitted"}
 
 
-@app.post("/submit_object", dependencies=[Depends(admin_token)])
-async def submit_object(object_id: Annotated[int, Form()],
-                        submission_type: Annotated[str, Form()],
-                        etag: Annotated[str, Form(None)],
-                        mimetype: Annotated[str, Form(None)],
-                        object_file: Annotated[UploadFile, File(None)]):
+@app.post("/sideload_object", dependencies=[Depends(admin_token)])
+async def sideload_object(object_id: Annotated[int, Form()],
+                          submission_type: Annotated[str, Form()],
+                          etag: Annotated[str, Form(None)],
+                          mimetype: Annotated[str, Form(None)],
+                          object_file: Annotated[UploadFile, File(None)]):
     """For submitting an unfetched object never part of a dispatch"""
     try:
         with db.ConnManager():
