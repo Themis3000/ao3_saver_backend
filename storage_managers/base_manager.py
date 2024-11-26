@@ -95,7 +95,7 @@ class StorageManager(ABC):
             img['src'] = f"/objects/{object_id}"
             unfetched_objects.append(UnfetchedObject(object_id=object_id,
                                                      request_url=original_src,
-                                                     associated_work=work,
+                                                     associated_work=work_id,
                                                      stalled=False))
 
         return work_soup.encode("utf-8"), unfetched_objects
