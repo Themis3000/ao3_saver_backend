@@ -5,7 +5,8 @@ from typing import List
 from db import (get_head_work_storage_data, add_storage_entry, update_storage_patch,
                 get_storage_entry, WorkNotFound, SupportingObject, object_exists, create_object_entry,
                 create_object_index_entry, find_object_index_entry, SupportingCachedObject, StorageData,
-                SupportingObjectType, SupportingFailedObject, insert_unfetched_object, UnfetchedObject)
+                SupportingObjectType, SupportingFailedObject, insert_unfetched_object, UnfetchedObject,
+                find_potential_etag_sha1)
 import bsdiff4
 import zlib
 from bs4.dammit import UnicodeDammit
@@ -93,10 +94,13 @@ class StorageManager(ABC):
             img['onerror'] = f"this.src='{original_src}';this.onerror=''"
             object_id = insert_unfetched_object(original_src, work_id)
             img['src'] = f"/objects/{object_id}"
+            etag, sha1 = find_potential_etag_sha1(original_src)
             unfetched_objects.append(UnfetchedObject(object_id=object_id,
                                                      request_url=original_src,
                                                      associated_work=work_id,
-                                                     stalled=False))
+                                                     stalled=False,
+                                                     potential_etag=etag,
+                                                     potential_sha1=sha1))
 
         return work_soup.encode("utf-8"), unfetched_objects
 

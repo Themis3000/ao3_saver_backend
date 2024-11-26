@@ -590,6 +590,8 @@ class UnfetchedObject(BaseModel):
     request_url: str
     associated_work: int
     stalled: bool
+    potential_etag: str = None
+    potential_sha1: str = None
 
 
 def get_unfetched_object(object_id: int) -> UnfetchedObject:
@@ -695,3 +697,17 @@ def insert_unfetched_object(request_url: str, associated_work: int) -> int:
     object_id = cursor.fetchone()[0]
     cursor.close()
     return object_id
+
+
+def find_potential_etag_sha1(url: str) -> tuple[str | None, str | None]:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT etag, sha1
+        FROM object_index
+        WHERE request_url = %(url)s
+        ORDER BY creation_time desc
+        LIMIT 1;
+    """, {"url": url})
+    etag, sha1 = cursor.fetchone()
+    cursor.close()
+    return etag, sha1
