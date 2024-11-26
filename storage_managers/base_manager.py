@@ -85,7 +85,7 @@ class StorageManager(ABC):
     @staticmethod
     def rewrite_html_sources(work: bytes, work_id: int) -> tuple[bytes, List[UnfetchedObject]]:
         """Rewrites html sources, then returns new work and list of unfetched objects"""
-        work_soup = BeautifulSoup(work, 'html.parser', is_html=True)
+        work_soup = BeautifulSoup(work, 'html.parser')
 
         unfetched_objects = []
         for img in work_soup.find_all('img', src=True):
@@ -98,7 +98,7 @@ class StorageManager(ABC):
                                                      associated_work=work,
                                                      stalled=False))
 
-        return work_soup.markup.encode('utf-8'), unfetched_objects
+        return work_soup.encode("utf-8"), unfetched_objects
 
 
 class TooManyIterations(Exception):

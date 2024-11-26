@@ -13,6 +13,7 @@ import os.path
 import psycopg2
 import db_updater
 
+retry_interval_string = os.environ.get("RETRY_INTERVAL_STRING", "00:04:00")
 valid_formats = ["pdf", "epub", "azw3", "mobi", "html", "txt"]
 format_mimetypes = {
     "pdf": "application/pdf",
@@ -187,11 +188,11 @@ def get_job(client_name: str) -> None | JobOrder:
         SELECT
         FROM dispatches
         WHERE dispatches.job_id = queue.job_id
-        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:04:00')
+        AND dispatches.dispatched_time > (NOW() - INTERVAL %(interval)s)
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
-    """)
+    """, {"interval": retry_interval_string})
     queue_query = cursor.fetchone()
     cursor.close()
 

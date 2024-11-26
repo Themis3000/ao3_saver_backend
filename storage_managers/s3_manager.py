@@ -2,8 +2,8 @@ import io
 import os
 import boto3
 import botocore
-
 from . import StorageManager
+addressing_style = os.getenv('ADDRESS_STYLE', "virtual")
 
 
 class S3Manager(StorageManager):
@@ -16,7 +16,7 @@ class S3Manager(StorageManager):
 
         session = boto3.session.Session()
         self.client = session.client('s3',
-                                     config=botocore.config.Config(s3={'addressing_style': 'virtual'}),
+                                     config=botocore.config.Config(s3={'addressing_style': addressing_style}),
                                      region_name=region,
                                      endpoint_url=endpoint_url,
                                      aws_access_key_id=public_key,
