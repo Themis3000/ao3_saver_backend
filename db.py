@@ -142,6 +142,7 @@ class UnfetchedObject(BaseModel):
     stalled: bool
     etag: str | None
     sha1: str | None
+    potential_duplicate_id: int | None
 
     def model_post_init(self, __context):
         cursor = conn.cursor()
@@ -664,6 +665,7 @@ def mark_unfetched_as_duplicate(object_id: int):
 
 
 
+
 class SupportingObjectData(BaseModel):
     mimetype: str
     location: str
@@ -688,27 +690,32 @@ def get_supporting_object_file(obj_id: int) -> SupportingObjectData | None:
     return SupportingObjectData(mimetype=result[0], location=result[1], data=data)
 
 
-def insert_unfetched_object(request_url: str) -> int:
+def insert_unfetched_object(request_url: str) -> UnfetchedObject:
     cursor = conn.cursor()
+    potential_duplicate_id, etag, sha1 = find_potential_etag_sha1(request_url)
     cursor.execute("""
-        INSERT INTO unfetched_objects(request_url)
-        VALUES (%(request_url)s)
+        INSERT INTO unfetched_objects(request_url, potential_duplicate_of)
+        VALUES (%(request_url)s, %(potential_duplicate_of)s)
         RETURNING object_id;
-    """, {"request_url": request_url})
+    """, {"request_url": request_url, "potential_duplicate_of": potential_duplicate_id})
     object_id = cursor.fetchone()[0]
     cursor.close()
-    return object_id
+    return UnfetchedObject(object_id=object_id,
+                           request_url=request_url,
+                           stalled=False,
+                           potential_etag=etag,
+                           potential_sha1=sha1)
 
 
-def find_potential_etag_sha1(url: str) -> tuple[str | None, str | None]:
+def find_potential_etag_sha1(url: str) -> tuple[int | None, str | None, str | None]:
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT etag, sha1
+        SELECT object_id, etag, sha1
         FROM object_index
         WHERE request_url = %(url)s
         ORDER BY creation_time desc
         LIMIT 1;
     """, {"url": url})
-    etag, sha1 = cursor.fetchone()
+    object_id, etag, sha1 = cursor.fetchone()
     cursor.close()
-    return etag, sha1
+    return object_id, etag, sha1

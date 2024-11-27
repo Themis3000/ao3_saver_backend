@@ -93,6 +93,13 @@ def ensure_schema_updated(conn):
             alter table unfetched_objects
                 drop column associated_work;
             
+            alter table unfetched_objects
+                add potential_duplicate_of integer;
+
+            alter table unfetched_objects
+                add constraint unfetched_objects_object_index_object_id_fk
+                    foreign key (potential_duplicate_of) references object_index;
+            
             INSERT INTO public.version_info (version)
             VALUES (2);
         """)
