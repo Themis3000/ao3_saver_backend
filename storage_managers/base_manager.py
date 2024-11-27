@@ -35,7 +35,7 @@ class StorageManager(ABC):
     def store_work(self, work_id: int, work: bytes, uploaded_time: int, updated_time: int, retrieved_from: str,
                    file_format: str, title: str = None, author: str = None) -> List[UnfetchedObject]:
         if file_format == 'html':
-            work, unfetched_objects = self.rewrite_html_sources(work, work_id)
+            work, unfetched_objects = self.rewrite_html_sources(work)
         else:
             unfetched_objects = []
 
@@ -84,7 +84,7 @@ class StorageManager(ABC):
         return master_file, original_storage_entry
 
     @staticmethod
-    def rewrite_html_sources(work: bytes, work_id: int) -> tuple[bytes, List[UnfetchedObject]]:
+    def rewrite_html_sources(work: bytes) -> tuple[bytes, List[UnfetchedObject]]:
         """Rewrites html sources, then returns new work and list of unfetched objects"""
         work_soup = BeautifulSoup(work, 'html.parser')
 
