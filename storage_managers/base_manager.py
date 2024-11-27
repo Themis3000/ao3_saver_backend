@@ -92,12 +92,11 @@ class StorageManager(ABC):
         for img in work_soup.find_all('img', src=True):
             original_src = img['src']
             img['onerror'] = f"this.src='{original_src}';this.onerror=''"
-            object_id = insert_unfetched_object(original_src, work_id)
+            object_id = insert_unfetched_object(original_src)
             img['src'] = f"/objects/{object_id}"
             etag, sha1 = find_potential_etag_sha1(original_src)
             unfetched_objects.append(UnfetchedObject(object_id=object_id,
                                                      request_url=original_src,
-                                                     associated_work=work_id,
                                                      stalled=False,
                                                      potential_etag=etag,
                                                      potential_sha1=sha1))

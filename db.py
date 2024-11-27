@@ -139,7 +139,6 @@ def queue_item_status(job_id: int) -> QueueStatus:
 class UnfetchedObject(BaseModel):
     object_id: int
     request_url: str
-    associated_work: int
     stalled: bool
     etag: str | None
     sha1: str | None
@@ -558,14 +557,14 @@ def create_object_entry(sha1: str, location: str):
     cursor.close()
 
 
-def find_object_index_entry(sha1: str, request_url: str, etag: str | None, associated_work: int) -> int | None:
+def find_object_index_entry(sha1: str, request_url: str, etag: str | None) -> int | None:
     """For checking to see if an entry already sufficiently describes what is to be inserted"""
     cursor = conn.cursor()
     cursor.execute("""
         SELECT object_id
         FROM object_index
-        WHERE request_url = %(request_url)s AND etag=%(etag)s AND sha1=%(sha1)s AND associated_work=%(associated_work)s
-    """, {"sha1": sha1, "request_url": request_url, "etag": etag, "associated_work": associated_work})
+        WHERE request_url = %(request_url)s AND etag=%(etag)s AND sha1=%(sha1)s
+    """, {"sha1": sha1, "request_url": request_url, "etag": etag})
     result = cursor.fetchone()
     cursor.close()
     if result is None:
@@ -573,13 +572,13 @@ def find_object_index_entry(sha1: str, request_url: str, etag: str | None, assoc
     return result[0]
 
 
-def create_object_index_entry(sha1: str, request_url: str, etag: str | None, associated_work: int, mimetype: str) -> int:
+def create_object_index_entry(sha1: str, request_url: str, etag: str | None, mimetype: str) -> int:
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO object_index (request_url, sha1, etag, mimetype, associated_work)
-        VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s, %(associated_work)s)
+        INSERT INTO object_index (request_url, sha1, etag, mimetype)
+        VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s)
         RETURNING object_id;
-    """, {"sha1": sha1, "request_url": request_url, "etag": etag, "associated_work": associated_work, "mimetype": mimetype})
+    """, {"sha1": sha1, "request_url": request_url, "etag": etag, "mimetype": mimetype})
     result = cursor.fetchone()
     cursor.close()
     return result[0]
@@ -588,7 +587,6 @@ def create_object_index_entry(sha1: str, request_url: str, etag: str | None, ass
 class UnfetchedObject(BaseModel):
     object_id: int
     request_url: str
-    associated_work: int
     stalled: bool
     potential_etag: str = None
     potential_sha1: str = None
@@ -597,7 +595,7 @@ class UnfetchedObject(BaseModel):
 def get_unfetched_object(object_id: int) -> UnfetchedObject:
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT object_id, request_url, associated_work, stalled
+        SELECT object_id, request_url, stalled
         FROM unfetched_objects
         WHERE object_id = %(object_id)s
     """, {"object_id": object_id})
@@ -605,7 +603,7 @@ def get_unfetched_object(object_id: int) -> UnfetchedObject:
     cursor.close()
     if results is None:
         raise ObjectNotFound(f"No unfetched object found for given object_id {object_id}")
-    return UnfetchedObject(object_id=results[0], request_url=results[1], associated_work=results[2], stalled=results[3])
+    return UnfetchedObject(object_id=results[0], request_url=results[1], stalled=results[2])
 
 
 def store_unfetched_object(object_file: bytes, object_id: int, etag: str, mimetype: str):
@@ -614,8 +612,7 @@ def store_unfetched_object(object_file: bytes, object_id: int, etag: str, mimety
 
     sufficient_object_entry = find_object_index_entry(sha1=sha1,
                                                       request_url=unfetched_object.request_url,
-                                                      etag=etag,
-                                                      associated_work=unfetched_object.associated_work)
+                                                      etag=etag)
     if sufficient_object_entry is not None:
         cursor = conn.cursor()
         cursor.execute("""
@@ -637,10 +634,9 @@ def store_unfetched_object(object_file: bytes, object_id: int, etag: str, mimety
             FROM unfetched_objects
             WHERE object_id = %(object_id)s;
         
-            INSERT INTO object_index (request_url, sha1, etag, mimetype, associated_work)
-            VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s, %(associated_work)s);
-        """, {"sha1": sha1, "request_url": unfetched_object.request_url, "etag": etag,
-              "associated_work": unfetched_object.associated_work, "mimetype": mimetype})
+            INSERT INTO object_index (request_url, sha1, etag, mimetype)
+            VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s);
+        """, {"sha1": sha1, "request_url": unfetched_object.request_url, "etag": etag, "mimetype": mimetype})
         cursor.close()
         return
 
@@ -656,11 +652,16 @@ def store_unfetched_object(object_file: bytes, object_id: int, etag: str, mimety
         INSERT INTO object_store (sha1, location)
         VALUES (%(sha1)s, %(location)s);
     
-        INSERT INTO object_index (request_url, sha1, etag, mimetype, associated_work)
-        VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s, %(associated_work)s);
-    """, {"sha1": sha1, "request_url": unfetched_object.request_url, "etag": etag,
-          "associated_work": unfetched_object.associated_work, "mimetype": mimetype, "location": key})
+        INSERT INTO object_index (request_url, sha1, etag, mimetype)
+        VALUES (%(request_url)s, %(sha1)s, %(etag)s, %(mimetype)s);
+    """, {"sha1": sha1, "request_url": unfetched_object.request_url, "etag": etag, "mimetype": mimetype,
+          "location": key})
     cursor.close()
+
+
+def mark_unfetched_as_duplicate(object_id: int):
+    unfetched_object = get_unfetched_object(object_id)
+
 
 
 class SupportingObjectData(BaseModel):
@@ -687,13 +688,13 @@ def get_supporting_object_file(obj_id: int) -> SupportingObjectData | None:
     return SupportingObjectData(mimetype=result[0], location=result[1], data=data)
 
 
-def insert_unfetched_object(request_url: str, associated_work: int) -> int:
+def insert_unfetched_object(request_url: str) -> int:
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO unfetched_objects(request_url, associated_work)
-        VALUES (%(request_url)s, %(associated_work)s)
+        INSERT INTO unfetched_objects(request_url)
+        VALUES (%(request_url)s)
         RETURNING object_id;
-    """, {"request_url": request_url, "associated_work": associated_work})
+    """, {"request_url": request_url})
     object_id = cursor.fetchone()[0]
     cursor.close()
     return object_id

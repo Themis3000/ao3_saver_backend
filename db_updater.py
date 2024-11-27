@@ -85,6 +85,14 @@ def ensure_schema_updated(conn):
             alter table object_index
                 alter column mimetype drop not null;
             
+            drop index object_index_associated_work_index;
+
+            alter table object_index
+                drop column associated_work;
+            
+            alter table unfetched_objects
+                drop column associated_work;
+            
             INSERT INTO public.version_info (version)
             VALUES (2);
         """)
