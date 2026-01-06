@@ -87,7 +87,8 @@ def queue_work(work_id: int, updated_time: int, work_format: str, reporter_id: s
     cursor.execute("""
         SELECT job_id
         FROM queue
-        WHERE work_id=%(work_id)s AND format=%(work_format)s AND complete=false
+        WHERE work_id=%(work_id)s AND format=%(work_format)s AND
+            (complete=false OR NOW() < submitted_time + interval '1 day')
     """, {"work_id": work_id, "work_format": work_format, "updated_time": updated_time})
     job_id = cursor.fetchone()
     if job_id:
