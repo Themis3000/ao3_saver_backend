@@ -1,4 +1,4 @@
-CURRENT_VERSION = 2
+CURRENT_VERSION = 1
 
 
 def get_db_version(conn):
@@ -36,38 +36,38 @@ def ensure_schema_updated(conn):
     if version == 0:  # Migration script for version 0 -> 1
         with open("db_init.sql", "r") as f:
             init_cursor.execute(f.read())
-    elif version == 1:  # Migration script for version 1 -> 2
-        init_cursor.execute("""
-            create table unfetched_objects
-            (
-                object_id       integer default nextval('object_index_object_id_seq'::regclass) not null
-                    constraint unfetched_objects_pk
-                        primary key,
-                request_url     varchar(2000)                                                   not null,
-                associated_work integer                                                         not null,
-                stalled         boolean default false                                           not null
-            );
-            
-            create table object_dispatches
-            (
-                dispatch_id        serial                                       not null
-                    constraint object_dispatches_pk
-                        primary key,
-                dispatched_time    TIMESTAMP(0) WITHOUT TIME ZONE default NOW() not null,
-                dispatched_to_name varchar(255)                                 not null,
-                object_id          integer                                      not null,
-                fail_reported      boolean                        default false not null,
-                complete           boolean                        default false not null
-            );
-            
-            create table version_info
-            (
-                version integer not null
-            );
-            
-            INSERT INTO public.version_info (version)
-            VALUES (2);
-        """)
+    # elif version == 1:  # Migration script for version 1 -> 2
+    #     init_cursor.execute("""
+    #         create table unfetched_objects
+    #         (
+    #             object_id       integer default nextval('object_index_object_id_seq'::regclass) not null
+    #                 constraint unfetched_objects_pk
+    #                     primary key,
+    #             request_url     varchar(2000)                                                   not null,
+    #             associated_work integer                                                         not null,
+    #             stalled         boolean default false                                           not null
+    #         );
+    #
+    #         create table object_dispatches
+    #         (
+    #             dispatch_id        serial                                       not null
+    #                 constraint object_dispatches_pk
+    #                     primary key,
+    #             dispatched_time    TIMESTAMP(0) WITHOUT TIME ZONE default NOW() not null,
+    #             dispatched_to_name varchar(255)                                 not null,
+    #             object_id          integer                                      not null,
+    #             fail_reported      boolean                        default false not null,
+    #             complete           boolean                        default false not null
+    #         );
+    #
+    #         create table version_info
+    #         (
+    #             version integer not null
+    #         );
+    #
+    #         INSERT INTO public.version_info (version)
+    #         VALUES (2);
+    #     """)
 
     init_cursor.close()
     conn.commit()
