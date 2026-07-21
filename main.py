@@ -135,6 +135,7 @@ async def extract_supporting_objects(form_data) -> List[db.SupportingObject | db
 @app.post("/submit_job", dependencies=[Depends(admin_token)])
 async def complete_job(dispatch_id: Annotated[int, Form()],
                        report_code: Annotated[int, Form()],
+                       requesting_ip: Annotated[str, Form()],
                        work: Annotated[UploadFile, File()],
                        request: Request):
     """For submitting a completed job"""
@@ -143,7 +144,7 @@ async def complete_job(dispatch_id: Annotated[int, Form()],
 
     try:
         with db.ConnManager():
-            db.submit_dispatch(dispatch_id, report_code, await work.read(), supporting_objects)
+            db.submit_dispatch(dispatch_id, report_code, await work.read(), requesting_ip, supporting_objects)
     except db.NotAuthorized:
         raise HTTPException(status_code=403, detail="not authorized to submit job")
     except db.AlreadyReported:

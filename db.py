@@ -390,7 +390,7 @@ class SupportingCachedObject(BaseModel):
     object_id: int
 
 
-def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
+def submit_dispatch(dispatch_id: int, report_code: int, work: bytes, requesting_ip: str,
                     supporting_objects: List[SupportingObject | SupportingCachedObject]) -> None:
     cursor = conn.cursor()
     cursor.execute("""
@@ -429,17 +429,17 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes,
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE dispatches
-            SET complete = true, found_as_duplicate = true
+            SET complete = true, found_as_duplicate = true, requesting_ip = %(requesting_ip)s
             WHERE job_id = %(job_id)s
-        """, {"job_id": job_id})
+        """, {"job_id": job_id, "requesting_ip": requesting_ip})
         cursor.close()
     else:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE dispatches
-            SET complete = true
+            SET complete = true, requesting_ip = %(requesting_ip)s
             WHERE job_id = %(job_id)s
-        """, {"job_id": job_id})
+        """, {"job_id": job_id, "requesting_ip": requesting_ip})
         cursor.close()
     mark_queue_completed(job_id, True)
 
