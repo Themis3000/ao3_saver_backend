@@ -237,7 +237,7 @@ class AlreadyReported(Exception):
     """This is used when something is already reported and did not have any reason to be reported again"""
 
 
-def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
+def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int, requesting_ip: str):
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -260,9 +260,9 @@ def mark_dispatch_fail(dispatch_id: int, fail_code: int, report_code: int):
 
     cursor.execute("""
         UPDATE dispatches
-        SET fail_reported = true, fail_status = %(fail_status)s, complete = true
+        SET fail_reported = true, fail_status = %(fail_status)s, complete = true, requesting_ip = %(requesting_ip)s
         WHERE dispatch_id = %(dispatch_id)s;
-    """, {"fail_status": fail_code, "dispatch_id": dispatch_id, "job_id": job_id})
+    """, {"fail_status": fail_code, "dispatch_id": dispatch_id, "job_id": job_id, "requesting_ip": requesting_ip})
 
     fail_count = get_queue_dispatch_count(job_id)
     if fail_count >= 3:

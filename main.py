@@ -89,13 +89,14 @@ class JobFailure(BaseModel):
     dispatch_id: int
     fail_status: int
     report_code: int
+    requesting_ip: str
 
 
 @app.post("/job_fail", dependencies=[Depends(admin_token)])
 async def fail_job(job: JobFailure):
     try:
         with db.ConnManager():
-            db.mark_dispatch_fail(job.dispatch_id, job.fail_status, job.report_code)
+            db.mark_dispatch_fail(job.dispatch_id, job.fail_status, job.report_code, job.requesting_ip)
     except db.NotAuthorized:
         raise HTTPException(status_code=403, detail="not authorized to report failure")
     except db.AlreadyReported:
