@@ -178,7 +178,7 @@ def get_job(client_name: str) -> None | JobOrder:
         SELECT
         FROM dispatches
         WHERE dispatches.job_id = queue.job_id
-        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:04:00')
+        AND dispatches.dispatched_time > (NOW() - INTERVAL '00:01:30')
     )
     ORDER BY queue.submitted_time DESC
     LIMIT 1;
@@ -192,7 +192,7 @@ def get_job(client_name: str) -> None | JobOrder:
     job_id, work_id, work_format, updated = queue_query
 
     fail_count = get_queue_dispatch_count(job_id)
-    if fail_count >= 3:
+    if fail_count >= 4:
         mark_queue_completed(job_id, False)
         return get_job(client_name)
 
