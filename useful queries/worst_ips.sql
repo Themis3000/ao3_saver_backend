@@ -1,6 +1,7 @@
-SELECT requesting_ip, count(requesting_ip) as count
+SELECT requesting_ip,
+       count(dispatch_id) filter (WHERE fail_reported = true) as fails,
+       count(dispatch_id) filter (WHERE fail_reported = false AND complete = true) as successes
 FROM dispatches
-WHERE fail_reported = true
 GROUP BY requesting_ip
-ORDER BY count desc
+ORDER BY fails desc
 LIMIT 500;
