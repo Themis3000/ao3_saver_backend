@@ -10,14 +10,12 @@ class S3Manager(StorageManager):
     def __init__(self):
         public_key = os.environ["S3_PUBLIC_KEY"]
         private_key = os.environ["S3_PRIVATE_KEY"]
-        region = os.environ["S3_REGION_NAME"]
         endpoint_url = os.environ["S3_ENDPOINT"]
         self.bucket = os.environ["S3_BUCKET"]
 
         session = boto3.session.Session()
         self.client = session.client('s3',
                                      config=botocore.config.Config(s3={'addressing_style': 'virtual'}),
-                                     region_name=region,
                                      endpoint_url=endpoint_url,
                                      aws_access_key_id=public_key,
                                      aws_secret_access_key=private_key)
