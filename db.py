@@ -588,3 +588,43 @@ def get_supporting_object_file(obj_id: int) -> SupportingObjectData | None:
     from file_storage import storage
     data = storage.get_file(result[1])
     return SupportingObjectData(mimetype=result[0], location=result[1], data=data)
+
+
+class SearchResult(BaseModel):
+    work_id: int
+    work_title: str
+    work_format: str
+
+def get_works_by_author(author: str):
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT work_id, title, format
+        FROM works_storage
+        WHERE author = %(author)s AND patch_of IS NULL
+        ORDER BY uploaded_time DESC;
+    """, {"author": author})
+    results = cursor.fetchall()
+    cursor.close()
+    works = [SearchResult(
+        work_id=result[0],
+        work_title=result[1],
+        work_format=result[2]
+    ) for result in results]
+    return works
+
+def get_works_by_title(title: str):
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT work_id, title, format
+        FROM works_storage
+        WHERE title = %(title)s AND patch_of IS NULL
+        ORDER BY uploaded_time DESC;
+    """, {"title": title})
+    results = cursor.fetchall()
+    cursor.close()
+    works = [SearchResult(
+        work_id=result[0],
+        work_title=result[1],
+        work_format=result[2]
+    ) for result in results]
+    return works

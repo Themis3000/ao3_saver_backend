@@ -1,0 +1,32 @@
+<html lang="en">
+<head>
+    <title>Search</title>
+</head>
+<body>
+    <h2>Super secret search page</h2>
+    <form action="" method="get">
+        <label>
+            <input type="radio" name="search_type" value="author">
+            Author
+        </label>
+        <br>
+        <label>
+            <input type="radio" name="search_type" value="title">
+            Title
+        </label>
+        <br>
+        <label>
+            search term
+            <input type="text" name="search_term">
+        </label>
+        <input type="submit" value="Search">
+    </form>
+    {% if work_results is defined %}
+        <h3>Search results:</h3>
+        {% for result in work_results %}
+            <br>
+            <a href="/works/{{ result.work_id }}">{{ result.work_title }}</a> ({{ result.work_format }})
+        {% endfor %}
+    {% endif %}
+</body>
+</html>

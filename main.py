@@ -1,4 +1,5 @@
 import itertools
+import os
 import uuid
 import db
 from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile, Depends
@@ -11,10 +12,12 @@ from cacheout import Cache
 from typing import Annotated
 from auth import admin_token
 from file_storage import storage
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 app = FastAPI()
 bulk_dl_tasks_cache = Cache(maxsize=50)
 templates = Jinja2Templates(directory="templates/")
+security = HTTPBasic()
 
 origins = [
     "http://127.0.0.1:8000",
@@ -230,3 +233,27 @@ async def bulk_download(dl_id: str):
             detail="Download not valid, please initiate a new download or check that you have the right url.")
     zip_res = db.get_bulk_works(works)
     return StreamingResponse(content=zip_res, media_type="application/zip")
+
+
+@app.get("/search")
+async def search(request: Request, creds: HTTPBasicCredentials = Depends(security), search_type=None, search_term=None):
+    if creds.username != "search" and creds.password != os.environ["SEARCH_PASS"]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
+
+    if search_term is None:
+        return templates.TemplateResponse(
+            "search.jinja",
+            context={"request": request},
+        )
+
+    if search_type == "author":
+        works = db.get_works_by_author(search_term)
+    elif search_type == "title":
+        works = db.get_works_by_title(search_term)
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad search type selected")
+
+    return templates.TemplateResponse(
+        "search.jinja",
+        context={"request": request, "work_results": works},
+    )
