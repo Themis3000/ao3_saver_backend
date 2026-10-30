@@ -173,6 +173,10 @@ async def submit_work(work_id: Annotated[int, Form()],
         db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format, supporting_objects)
     return {"status": "successfully submitted"}
 
+@app.get("/works/{work_id}/{extra:path}")
+async def extra_redirect(work_id: int, extra: str):
+    return RedirectResponse(f"/works/{work_id}")
+
 
 @app.get("/works/{work_id}")
 async def get_work(work_id: int, request: Request, version: int = None):
