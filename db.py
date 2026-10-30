@@ -445,9 +445,10 @@ def submit_dispatch(dispatch_id: int, report_code: int, work: bytes, requesting_
 
 
 def sideload_work(work_id, work, updated_time, submitted_by, file_format,
-                  supporting_objects: List[SupportingObject | SupportingCachedObject]):
+                  supporting_objects: List[SupportingObject | SupportingCachedObject], title, author):
     from file_storage import storage
-    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects)
+    storage.store_work(work_id, work, int(time.time()), updated_time, submitted_by, file_format, supporting_objects,
+                       title, author)
 
 
 re_clean_filename = re.compile(r"[/\\?%*:|\"<>\x7F\x00-\x1F]")

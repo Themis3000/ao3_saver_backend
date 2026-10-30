@@ -164,13 +164,16 @@ async def submit_work(work_id: Annotated[int, Form()],
                       file_format: Annotated[str, Form()],
                       updated_time: Annotated[int, Form()],
                       requester_id: Annotated[str, Form()],
+                      author: Annotated[str, Form()],
+                      title: Annotated[str, Form()],
                       request: Request):
     """For submitting a work that was never part of an assigned job"""
     form_data = await request.form()
     supporting_objects = await extract_supporting_objects(form_data)
 
     with db.ConnManager():
-        db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format, supporting_objects)
+        db.sideload_work(work_id, await work.read(), updated_time, requester_id, file_format, supporting_objects,
+                         title, author)
     return {"status": "successfully submitted"}
 
 @app.get("/works/{work_id}/{extra:path}")
