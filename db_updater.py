@@ -1,4 +1,4 @@
-CURRENT_VERSION = 2
+CURRENT_VERSION = 3
 
 
 def get_db_version(conn):
@@ -54,6 +54,26 @@ def ensure_schema_updated(conn):
 
             create index dispatches_request_ip
                 on dispatches (requesting_ip);
+        """)
+    elif version == 2:  # Migration script for version 2 -> 3
+        print("upgrading database to version 3")
+        init_cursor.execute("""
+            UPDATE version_info
+                SET version = 3
+                WHERE version = 2;
+        
+            create table work_directives
+            (
+                directive_id   serial       not null
+                    constraint work_directives_pk
+                        primary key,
+                selector       varchar(255) not null,
+                directive_type varchar(255) not null,
+                directive_data text
+            );
+            
+            create index work_directives_selector_index
+                on work_directives (selector);
         """)
 
     init_cursor.close()

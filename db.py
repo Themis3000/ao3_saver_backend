@@ -629,3 +629,6 @@ def get_works_by_title(title: str):
         work_format=result[2]
     ) for result in results]
     return works
+
+def check_work_directives(work_id, author):
+    pass
