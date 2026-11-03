@@ -284,3 +284,28 @@ async def search(request: Request, creds: HTTPBasicCredentials = Depends(securit
         "search.jinja",
         context={"request": request, "work_results": works},
     )
+
+@app.get("/removal")
+async def removal(request: Request, creds: HTTPBasicCredentials = Depends(security)):
+    if creds.username != "removal_officer" and creds.password != os.environ["REMOVAL_PASS"]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
+
+    directives = db.get_all_work_directives()
+
+    return templates.TemplateResponse(
+        "removal_form.jinja",
+        context={"request": request, "directives": directives}
+    )
+
+@app.post("/submit_directive")
+async def removal_post(request: Request,
+                       directive_type: Annotated[str, Form()],
+                       removal_type: Annotated[str, Form()],
+                       author_or_id: Annotated[str, Form()],
+                       directive_data: Annotated[str | None, Form()] = None,
+                       creds: HTTPBasicCredentials = Depends(security)):
+    if creds.username != "removal_officer" and creds.password != os.environ["REMOVAL_PASS"]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
+
+    print(directive_type, removal_type, author_or_id, directive_data)
+    return RedirectResponse("/removal", status_code=302)

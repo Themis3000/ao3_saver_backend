@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ao3saver secret removal form</title>
+</head>
+<body>
+    <h1>Super secret content removal form</h1>
+    <form action="/submit_directive" method="post">
+        <label>
+            Directive type
+            <select name="directive_type" id="directive_type">
+                <option value="removed_notice">removed notice</option>
+                <option value="removed_notice_note">removed notice (with author note)</option>
+                <option value="do_not_serve">do not serve</option>
+            </select>
+        </label>
+        <br>
+        Remove by:
+        <label>
+            <input type="radio" name="removal_type" value="author">
+            Author
+        </label>
+        <label>
+            <input type="radio" name="removal_type" value="work_id">
+            Work id
+        </label>
+        <br>
+        <label>
+            Author / Work ID
+            <input type="text" name="author_or_id">
+        </label>
+        <label>
+            Directive data
+            <input type="text" name="directive_data">
+        </label>
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+    <h3>Current directives:</h3>
+    <table>
+        <tr>
+            <th>Directive ID</th>
+            <th>Selector</th>
+            <th>Directive type</th>
+            <th>Directive data</th>
+        </tr>
+        {% for directive in directives %}
+            <tr>
+                <td>{{ directive.directive_id }}</td>
+                <td>{{ directive.selector }}</td>
+                <td>{{ directive.directive_type }}</td>
+                <td>{{ directive.directive_data }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+</body>
+</html>

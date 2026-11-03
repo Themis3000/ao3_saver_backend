@@ -650,3 +650,27 @@ def get_work_directives(work_id: str, author: str) -> List[WorkDirective]:
     cursor.close()
     directives = [WorkDirective(directive_code=result[0], data=result[1]) for result in results]
     return directives
+
+
+class FullWorkDirective(BaseModel):
+    directive_id: int
+    selector: str
+    directive_type: str
+    directive_data: str | None
+
+def get_all_work_directives() -> List[FullWorkDirective]:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT directive_id, selector, directive_type, directive_data
+        FROM work_directives
+        LIMIT 10000;
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    directives = [
+        FullWorkDirective(directive_id=result[0],
+                          selector=result[1],
+                          directive_type=result[2],
+                          directive_data=result[3])
+        for result in results]
+    return directives
