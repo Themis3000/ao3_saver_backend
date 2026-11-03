@@ -324,6 +324,7 @@ class StorageData(BaseModel):
     title: str | None
     img_enabled: bool
     sha1: str
+    author: str | None
 
 
 def parse_storage_query(result) -> StorageData | None:
@@ -332,14 +333,14 @@ def parse_storage_query(result) -> StorageData | None:
 
     return StorageData(storage_id=result[0], work_id=result[1], uploaded_time=result[2], updated_time=result[3],
                        location=result[4], patch_of=result[5], retrieved_from=result[6], format=result[7],
-                       title=result[8], img_enabled=result[9], sha1=result[10])
+                       title=result[8], img_enabled=result[9], sha1=result[10], author=result[11])
 
 
 def get_head_work_storage_data(work_id: int, file_format: str) -> StorageData | None:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT storage_id, work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format, title,
-        img_enabled, sha1
+        img_enabled, sha1, author
         FROM works_storage
         WHERE work_id = %(work_id)s AND format = %(format)s AND patch_of IS NULL
         LIMIT 1;
@@ -354,7 +355,7 @@ def get_storage_entry(storage_id: int) -> StorageData | None:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT storage_id, work_id, uploaded_time, updated_time, location, patch_of, retrieved_from, format, title,
-        img_enabled, sha1
+        img_enabled, sha1, author
         FROM works_storage
         WHERE storage_id = %(storage_id)s
     """, {"storage_id": storage_id})
@@ -483,6 +484,7 @@ class Work(BaseModel):
     location: str
     patch_of: int | None
     retrieved_from: str
+    author: str | None
 
     @property
     def permalink_url(self) -> str:
@@ -504,7 +506,7 @@ class Work(BaseModel):
 def get_work_versions(work_id: int) -> List[Work]:
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT storage_id, work_id, format, uploaded_time, updated_time, location, patch_of, retrieved_from
+        SELECT storage_id, work_id, format, uploaded_time, updated_time, location, patch_of, retrieved_from, author
         FROM works_storage
         WHERE work_id = %(work_id)s
         ORDER BY uploaded_time DESC;
@@ -519,7 +521,8 @@ def get_work_versions(work_id: int) -> List[Work]:
         updated_time=result[4],
         location=result[5],
         patch_of=result[6],
-        retrieved_from=result[7]
+        retrieved_from=result[7],
+        author=result[8]
     ) for result in results]
     return works
 
@@ -630,5 +633,20 @@ def get_works_by_title(title: str):
     ) for result in results]
     return works
 
-def check_work_directives(work_id, author):
-    pass
+
+class WorkDirective(BaseModel):
+    directive_code: str
+    data: str | None
+
+def get_work_directives(work_id: str, author: str) -> List[WorkDirective]:
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT directive_type, directive_data
+        FROM work_directives
+        WHERE selector = 'work_' || %(work_id)s OR selector = 'work_' || %(author)s
+        LIMIT 10;
+    """, {"work_id": work_id, "author": author})
+    results = cursor.fetchall()
+    cursor.close()
+    directives = [WorkDirective(directive_code=result[0], data=result[1]) for result in results]
+    return directives

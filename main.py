@@ -181,6 +181,19 @@ async def extra_redirect(work_id: int, extra: str):
     return RedirectResponse(f"/works/{work_id}")
 
 
+def removal_checks(work_id: int, author: str) -> None:
+    directives = db.get_work_directives(str(work_id), author)
+    for directive in directives:
+        if directive.directive_code == "do_not_serve":
+            raise HTTPException(status_code=404, detail="work not found")
+        if directive.directive_code == "removed_notice":
+            raise HTTPException(status_code=410, detail="This work has been removed at the request of the author")
+        if directive.directive_code == "removed_notice_note":
+            raise HTTPException(status_code=410, detail=f"This work has been removed at the request of the author. "
+                                                        f"They have decided to leave the following note: "
+                                                        f"{directive.data}")
+
+
 @app.get("/works/{work_id}")
 async def get_work(work_id: int, request: Request, version: int = None):
     if version is None:
@@ -189,6 +202,7 @@ async def get_work(work_id: int, request: Request, version: int = None):
         if len(work_history) == 0:
             raise HTTPException(status_code=404, detail="work not found")
         newest_work = work_history.pop(0)
+        removal_checks(newest_work.work_id, newest_work.author)
         if len(work_history) == 0:
             return RedirectResponse(url=newest_work.permalink_url)
         return templates.TemplateResponse(
@@ -202,6 +216,7 @@ async def get_work(work_id: int, request: Request, version: int = None):
         raise HTTPException(status_code=404, detail="version not found")
     if storage_data.work_id != work_id:
         raise HTTPException(status_code=400, detail="invalid request")
+    removal_checks(storage_data.work_id, storage_data.author)
     return Response(content=work,
                     media_type=db.format_mimetypes[storage_data.format],
                     headers={"Cache-Control": "max-age=31536000, immutable"})
