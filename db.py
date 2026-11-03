@@ -683,3 +683,11 @@ def add_directive(selector: str, directive_type: str, directive_data: str | None
     """, {"selector": selector, "directive_type": directive_type, "directive_data": directive_data})
     cursor.close()
 
+
+def remove_directive(directive_id: int) -> None:
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE FROM work_directives
+        WHERE directive_id = %(directive_id)s
+    """, {"directive_id": directive_id})
+    cursor.close()

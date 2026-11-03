@@ -321,9 +321,10 @@ async def removal_post(directive_type: Annotated[str, Form()],
     return RedirectResponse("/removal", status_code=302)
 
 @app.post("/remove_directive")
-async def remove_directive(directive_id: Annotated[str, Form()], creds: HTTPBasicCredentials = Depends(security)):
+async def remove_directive(directive_id: Annotated[int, Form()], creds: HTTPBasicCredentials = Depends(security)):
     removal_access_check(creds)
 
-    print(directive_id)
+    with db.ConnManager():
+        db.remove_directive(directive_id)
 
     return RedirectResponse("/removal", status_code=302)
