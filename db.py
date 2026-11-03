@@ -674,3 +674,12 @@ def get_all_work_directives() -> List[FullWorkDirective]:
                           directive_data=result[3])
         for result in results]
     return directives
+
+def add_directive(selector: str, directive_type: str, directive_data: str | None) -> None:
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO work_directives (selector, directive_type, directive_data)
+        VALUES (%(selector)s, %(directive_type)s, %(directive_data)s)
+    """, {"selector": selector, "directive_type": directive_type, "directive_data": directive_data})
+    cursor.close()
+

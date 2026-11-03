@@ -1,6 +1,9 @@
 import itertools
 import os
 import uuid
+
+import psycopg2
+
 import db
 from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile, Depends
 from fastapi.responses import Response, RedirectResponse, StreamingResponse, FileResponse
@@ -298,8 +301,7 @@ async def removal(request: Request, creds: HTTPBasicCredentials = Depends(securi
     )
 
 @app.post("/submit_directive")
-async def removal_post(request: Request,
-                       directive_type: Annotated[str, Form()],
+async def removal_post(directive_type: Annotated[str, Form()],
                        removal_type: Annotated[str, Form()],
                        author_or_id: Annotated[str, Form()],
                        directive_data: Annotated[str | None, Form()] = None,
@@ -307,5 +309,11 @@ async def removal_post(request: Request,
     if creds.username != "removal_officer" and creds.password != os.environ["REMOVAL_PASS"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
 
-    print(directive_type, removal_type, author_or_id, directive_data)
+    directive_selector = f"{removal_type}_{author_or_id}"
+    try:
+        with db.ConnManager():
+            db.add_directive(directive_selector, directive_type, directive_data)
+    except psycopg2.errors.UniqueViolation:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The directive you added already exists!")
+
     return RedirectResponse("/removal", status_code=302)
