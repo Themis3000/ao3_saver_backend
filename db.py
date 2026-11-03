@@ -643,7 +643,7 @@ def get_work_directives(work_id: str, author: str) -> List[WorkDirective]:
     cursor.execute("""
         SELECT directive_type, directive_data
         FROM work_directives
-        WHERE selector = 'work_' || %(work_id)s OR selector = 'work_' || %(author)s
+        WHERE selector = 'work_' || %(work_id)s OR selector = 'author_' || %(author)s
         LIMIT 10;
     """, {"work_id": work_id, "author": author})
     results = cursor.fetchall()
