@@ -51,6 +51,11 @@
                 <td>{{ directive.selector }}</td>
                 <td>{{ directive.directive_type }}</td>
                 <td>{{ directive.directive_data }}</td>
+                <td>
+                    <form action="/remove_directive" method="post">
+                        <button name="directive_id" value="{{ directive.directive_id }}">Delete</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
     </table>

@@ -267,7 +267,7 @@ async def bulk_download(dl_id: str):
 
 @app.get("/search")
 async def search(request: Request, creds: HTTPBasicCredentials = Depends(security), search_type=None, search_term=None):
-    if creds.username != "search" and creds.password != os.environ["SEARCH_PASS"]:
+    if creds.username != "search" or creds.password != os.environ["SEARCH_PASS"]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
 
     if search_term is None:
@@ -288,10 +288,13 @@ async def search(request: Request, creds: HTTPBasicCredentials = Depends(securit
         context={"request": request, "work_results": works},
     )
 
+def removal_access_check(creds: HTTPBasicCredentials):
+    if creds.username != "removal_officer" or creds.password != os.environ["REMOVAL_PASS"]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
+
 @app.get("/removal")
 async def removal(request: Request, creds: HTTPBasicCredentials = Depends(security)):
-    if creds.username != "removal_officer" and creds.password != os.environ["REMOVAL_PASS"]:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
+    removal_access_check(creds)
 
     directives = db.get_all_work_directives()
 
@@ -306,8 +309,7 @@ async def removal_post(directive_type: Annotated[str, Form()],
                        author_or_id: Annotated[str, Form()],
                        directive_data: Annotated[str | None, Form()] = None,
                        creds: HTTPBasicCredentials = Depends(security)):
-    if creds.username != "removal_officer" and creds.password != os.environ["REMOVAL_PASS"]:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You did not supply the correct password!")
+    removal_access_check(creds)
 
     directive_selector = f"{removal_type}_{author_or_id}"
     try:
@@ -315,5 +317,13 @@ async def removal_post(directive_type: Annotated[str, Form()],
             db.add_directive(directive_selector, directive_type, directive_data)
     except psycopg2.errors.UniqueViolation:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The directive you added already exists!")
+
+    return RedirectResponse("/removal", status_code=302)
+
+@app.post("/remove_directive")
+async def remove_directive(directive_id: Annotated[str, Form()], creds: HTTPBasicCredentials = Depends(security)):
+    removal_access_check(creds)
+
+    print(directive_id)
 
     return RedirectResponse("/removal", status_code=302)
