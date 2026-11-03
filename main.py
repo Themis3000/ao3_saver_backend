@@ -3,7 +3,7 @@ import os
 import uuid
 import db
 from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile, Depends
-from fastapi.responses import Response, RedirectResponse, StreamingResponse
+from fastapi.responses import Response, RedirectResponse, StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -40,6 +40,11 @@ class WorkReport(BaseModel):
     reporter: str
     title: str = None
     author: str = None
+
+
+@app.get("/")
+async def home_page():
+    return FileResponse("index.html")
 
 
 @app.post("/report_work")
