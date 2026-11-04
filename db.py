@@ -663,6 +663,7 @@ def get_all_work_directives() -> List[FullWorkDirective]:
     cursor.execute("""
         SELECT directive_id, selector, directive_type, directive_data
         FROM work_directives
+        ORDER BY directive_id DESC
         LIMIT 10000;
     """)
     results = cursor.fetchall()
