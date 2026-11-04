@@ -1,4 +1,4 @@
-CURRENT_VERSION = 3
+CURRENT_VERSION = 4
 
 
 def get_db_version(conn):
@@ -74,6 +74,16 @@ def ensure_schema_updated(conn):
             
             create index work_directives_selector_index
                 on work_directives (selector);
+        """)
+    elif version == 3:  # Migration script for version 3 -> 4
+        print("updating database to version 4")
+        init_cursor.execute("""
+            UPDATE version_info
+                SET version = 4
+                WHERE version = 3;
+        
+            ALTER TABLE work_directives
+                ADD CONSTRAINT unique_directive_info UNIQUE NULLS NOT DISTINCT (selector, directive_type, directive_data);
         """)
 
     init_cursor.close()
