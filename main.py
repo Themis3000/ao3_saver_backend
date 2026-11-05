@@ -1,3 +1,4 @@
+import hashlib
 import itertools
 import os
 import uuid
@@ -216,15 +217,16 @@ async def get_work(work_id: int, request: Request, version: int = None):
         )
 
     storage_data = db.get_storage_entry(version)
-    if request.headers.get("If-None-Match") == storage_data.sha1:
-        return Response(status_code=304)
-
-    work = storage.get_work(storage_data)
-    if work is None:
+    if storage_data is None:
         raise HTTPException(status_code=404, detail="version not found")
     if storage_data.work_id != work_id:
         raise HTTPException(status_code=400, detail="invalid request")
     removal_checks(storage_data.work_id, storage_data.author)
+
+    if request.headers.get("If-None-Match") == storage_data.sha1:
+        return Response(status_code=304)
+
+    work = storage.get_work(storage_data)
     return Response(content=work,
                     media_type=db.format_mimetypes[storage_data.format],
                     headers={"ETag": storage_data.sha1})
