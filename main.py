@@ -61,15 +61,13 @@ async def report_work(work: WorkReport):
 
 @app.get("/work_exists/{work_id}")
 async def work_exists(work_id: int):
-    with db.ConnManager():
-        return {"exists": db.work_exists(work_id)}
+    return {"exists": db.work_exists(work_id)}
 
 
 @app.get("/job_status")
 async def job_status(job_id: int):
     try:
-        with db.ConnManager():
-            job_status = db.queue_item_status(job_id)
+        job_status = db.queue_item_status(job_id)
     except db.JobNotFound:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -205,8 +203,7 @@ def removal_checks(work_id: int, author: str) -> None:
 @app.get("/works/{work_id}")
 async def get_work(work_id: int, request: Request, version: int = None):
     if version is None:
-        with db.ConnManager():
-            work_history = db.get_work_versions(work_id)
+        work_history = db.get_work_versions(work_id)
         if len(work_history) == 0:
             raise HTTPException(status_code=404, detail="work not found")
         newest_work = work_history.pop(0)
@@ -218,8 +215,11 @@ async def get_work(work_id: int, request: Request, version: int = None):
             context={"newest_work": newest_work, "work_history": work_history, "request": request},
         )
 
-    with db.ConnManager():
-        work, storage_data = storage.get_work(version)
+    storage_data = db.get_storage_entry(version)
+    if request.headers.get("If-None-Match") == storage_data.sha1:
+        return Response(status_code=304)
+
+    work = storage.get_work(storage_data)
     if work is None:
         raise HTTPException(status_code=404, detail="version not found")
     if storage_data.work_id != work_id:
@@ -227,13 +227,12 @@ async def get_work(work_id: int, request: Request, version: int = None):
     removal_checks(storage_data.work_id, storage_data.author)
     return Response(content=work,
                     media_type=db.format_mimetypes[storage_data.format],
-                    headers={"Cache-Control": "max-age=31536000, immutable"})
+                    headers={"ETag": storage_data.sha1})
 
 
 @app.get("/objects/{obj_id}")
 async def get_object(obj_id: int):
-    with db.ConnManager():
-        supporting_object = db.get_supporting_object_file(obj_id)
+    supporting_object = db.get_supporting_object_file(obj_id)
 
     if supporting_object is None:
         raise HTTPException(status_code=404, detail="not found.")

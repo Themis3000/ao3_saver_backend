@@ -59,12 +59,10 @@ class StorageManager(ABC):
             return None
         return self.get_file_compressed(head_work.location)
 
-    def get_work(self, storage_id: int) -> tuple[bytes, StorageData]:
-        storage_entry = get_storage_entry(storage_id)
+    def get_work(self, storage_entry: StorageData) -> bytes:
         if storage_entry is None:
             raise WorkNotFound("The archived work doesn't seem to exist.")
         storage_patches = []  # list of storage entries to be fetched for patching
-        original_storage_entry = storage_entry
         for _ in range(100):  # limiting iterations just in case
             storage_patches.insert(0, storage_entry)
             if storage_entry.patch_of is None:
@@ -78,7 +76,7 @@ class StorageManager(ABC):
             diff_bytes = self.get_file_compressed(storage_patch.location)
             master_file = bsdiff4.patch(master_file, diff_bytes)
 
-        return master_file, original_storage_entry
+        return master_file
 
     def rewrite_html_sources(self, work: bytes, supporting_objects: List[SupportingObject | SupportingCachedObject],
                              work_id: int) -> bytes:

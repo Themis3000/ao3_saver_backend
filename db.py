@@ -574,12 +574,13 @@ class SupportingObjectData(BaseModel):
     mimetype: str
     location: str
     data: bytes
+    sha1: str
 
 
 def get_supporting_object_file(obj_id: int) -> SupportingObjectData | None:
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT oi.mimetype, os.location
+        SELECT oi.mimetype, os.location, oi.sha1
         FROM object_index oi
         INNER JOIN object_store os on os.sha1 = oi.sha1
         WHERE oi.object_id = %s
@@ -591,7 +592,7 @@ def get_supporting_object_file(obj_id: int) -> SupportingObjectData | None:
         return None
     from file_storage import storage
     data = storage.get_file(result[1])
-    return SupportingObjectData(mimetype=result[0], location=result[1], data=data)
+    return SupportingObjectData(mimetype=result[0], location=result[1], sha1=result[2], data=data)
 
 
 class SearchResult(BaseModel):
