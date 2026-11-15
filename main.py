@@ -4,6 +4,7 @@ import os
 import uuid
 
 import psycopg2
+import requests
 
 import db
 from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile, Depends
@@ -189,16 +190,24 @@ async def extra_redirect(work_id: int, extra: str):
 
 
 def removal_checks(work_id: int, author: str) -> None:
-    directives = db.get_work_directives(str(work_id), author)
+    aa_endpoint = os.environ.get("AA_ENDPOINT")
+    if aa_endpoint is None:
+        return
+
+    response = requests.get(f"{aa_endpoint}api/check_ao3_work_status?work_id={work_id}&authors={author}&site=ao3saver.com")
+    if not response.ok:
+        raise HTTPException(status_code=500, detail="Archive Alliance is not working! Contact the admin to let them know")
+
+    directives = response.json()["directives"]
     for directive in directives:
-        if directive.directive_code == "do_not_serve":
+        if directive["directive_type"] == "do_not_serve":
             raise HTTPException(status_code=404, detail="work not found")
-        if directive.directive_code == "removed_notice":
+        if directive["directive_type"] == "removed_notice":
             raise HTTPException(status_code=410, detail="This work has been removed at the request of the author")
-        if directive.directive_code == "removed_notice_note":
+        if directive["directive_type"] == "removed_notice_note":
             raise HTTPException(status_code=410, detail=f"This work has been removed at the request of the author. "
                                                         f"They have decided to leave the following note: "
-                                                        f"{directive.data}")
+                                                        f"{directive['directive_data']}")
 
 
 @app.get("/works/{work_id}")
