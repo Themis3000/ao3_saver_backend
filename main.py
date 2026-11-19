@@ -222,7 +222,7 @@ async def get_work(work_id: int, request: Request, version: int = None):
             return RedirectResponse(url=newest_work.permalink_url)
         return templates.TemplateResponse(
             "work_dl.jinja",
-            context={"newest_work": newest_work, "work_history": work_history, "request": request},
+            context={"newest_work": newest_work, "work_history": work_history, "request": request, "name": "Work history"},
         )
 
     storage_data = db.get_storage_entry(version)
