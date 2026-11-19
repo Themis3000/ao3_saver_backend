@@ -1,11 +1,7 @@
-import hashlib
 import itertools
 import os
 import uuid
-
-import psycopg2
 import requests
-
 import db
 from fastapi import FastAPI, HTTPException, Request, status, File, Form, UploadFile, Depends
 from fastapi.responses import Response, RedirectResponse, StreamingResponse, FileResponse
@@ -221,8 +217,9 @@ async def get_work(work_id: int, request: Request, version: int = None):
         if len(work_history) == 0:
             return RedirectResponse(url=newest_work.permalink_url)
         return templates.TemplateResponse(
-            "work_dl.jinja",
-            context={"newest_work": newest_work, "work_history": work_history, "request": request, "name": "Work history"},
+            request,
+            name="work_dl.jinja",
+            context={"newest_work": newest_work, "work_history": work_history, "request": request},
         )
 
     storage_data = db.get_storage_entry(version)
@@ -282,8 +279,8 @@ async def search(request: Request, creds: HTTPBasicCredentials = Depends(securit
 
     if search_term is None:
         return templates.TemplateResponse(
-            "search.jinja",
-            context={"request": request},
+            request,
+            name="search.jinja"
         )
 
     if search_type == "author":
@@ -294,6 +291,7 @@ async def search(request: Request, creds: HTTPBasicCredentials = Depends(securit
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad search type selected")
 
     return templates.TemplateResponse(
-        "search.jinja",
-        context={"request": request, "work_results": works},
+        request,
+        name="search.jinja",
+        context={"work_results": works}
     )
